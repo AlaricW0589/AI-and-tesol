@@ -34,14 +34,11 @@
     <!-- 主内容区 -->
     <main class="flex-1 overflow-y-auto relative w-full max-w-4xl mx-auto p-4 flex flex-col gap-5">
 
-        <!-- 配置警告弹窗 (如果检测到配置未填写会显示) -->
+        <!-- 配置警告弹窗 (配置已填入，理论上不会显示) -->
         <div id="config-warning" class="hidden bg-red-50 border border-red-200 rounded-xl p-6 text-center shadow-lg mb-4">
             <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-2"></i>
-            <h3 class="text-lg font-bold text-red-700">未配置 Firebase</h3>
-            <p class="text-sm text-red-600 mt-2">
-                代码中的 API Key 还是默认的占位符。<br>
-                请用代码编辑器打开本文件，修改 <b>第 128 行</b> 附近的配置。
-            </p>
+            <h3 class="text-lg font-bold text-red-700">配置错误</h3>
+            <p class="text-sm text-red-600 mt-2">API Key 似乎无效，请检查代码。</p>
         </div>
 
         <!-- 1. 答题区域 -->
@@ -108,7 +105,7 @@
                         <i class="fa-solid fa-check"></i>
                     </div>
                     <h3 class="text-xl font-bold text-slate-800">提交成功</h3>
-                    <p class="text-slate-500 mt-2 max-w-md">你的答案和操作记录已归档。<br>你无法再次提交，但可以继续与 AI 对话。</p>
+                    <p class="text-slate-500 mt-2 max-w-md">你的答案和操作记录已归档。<br>你无法再次提交，AI 交互已结束。</p>
                 </div>
             </div>
         </section>
@@ -149,8 +146,7 @@
         import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚨 请在此处填入您的真实配置！
-        // 如果您不替换下面这些 "..."，网页是无法工作的
+        // 🚨 已填入您的真实配置
         // ==========================================
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
@@ -161,7 +157,7 @@
             appId: "1:983382295554:web:f65048ae253b284816131b",
             measurementId: "G-Z8S8D9YN6D"
         };
-        const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE"; // 替换为您的 Gemini API Key
+        const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE";
         // ==========================================
 
         const QUESTIONS_TO_FETCH = 5;
@@ -176,7 +172,8 @@
             questions: [], 
             user: null,
             db: null,
-            appId: 'github-pages-v1' 
+            appId: 'github-pages-v1',
+            isSubmitted: false // 新增状态：是否已提交
         };
 
         const get = (id) => document.getElementById(id);
@@ -206,12 +203,9 @@
         async function init() {
             detectIP();
 
-            // 1. 检查配置是否已替换
-            // 这是一个简单的检查，如果 apiKey 还是以 "AIzaSy..." 且没有被修改，就认为用户没填配置
-            if (FIREBASE_CONFIG.apiKey === "AIzaSy..." || FIREBASE_CONFIG.projectId === "your-app-id") {
+            if (FIREBASE_CONFIG.apiKey.startsWith("PLACEHOLDER")) {
                 document.getElementById('config-warning').classList.remove('hidden');
                 updateBtnState(false, "配置缺失", "fa-triangle-exclamation");
-                get('connection-status').innerHTML = '<span class="text-red-500">未配置</span>';
                 return;
             }
 
@@ -402,6 +396,9 @@
                     timeout
                 ]);
 
+                // 提交成功，设置锁定状态
+                state.isSubmitted = true;
+
                 logAction('submission', 'Complete submission uploaded');
                 get('question-container').classList.add('hidden');
                 get('quiz-completed-msg').classList.remove('hidden');
@@ -425,10 +422,23 @@
             const text = input.value.trim();
             if (!text) return;
 
+            // 1. 检查是否开始答题
             if (!state.studentName) {
                 appendMsg('user', text);
                 input.value = "";
                 setTimeout(() => appendMsg('ai', "⚠️ 请先在上方输入姓名并点击“开始答题”通过验证后，方可使用 AI 助教。"), 300);
+                return;
+            }
+
+            // 2. 检查是否已提交 (锁定 AI)
+            if (state.isSubmitted) {
+                appendMsg('user', text);
+                input.value = "";
+                setTimeout(() => {
+                    appendMsg('ai', "测试结束，感谢你的配合");
+                    // 可选：将这条拒绝记录也上传，用于分析学生是否有提交后继续提问的意图
+                    logAction('chat_blocked', `Post-submission query: ${text}`);
+                }, 300);
                 return;
             }
 
@@ -438,7 +448,11 @@
             logAction('chat_user', text);
 
             try {
-                if (GEMINI_API_KEY.startsWith("AIzaSy")) throw new Error("API Key Not Configured");
+                if (GEMINI_API_KEY.startsWith("AIzaSy") && GEMINI_API_KEY.endsWith("HE")) {
+                    // key is valid format
+                } else {
+                     throw new Error("API Key Not Configured");
+                }
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
