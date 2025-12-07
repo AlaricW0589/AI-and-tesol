@@ -11,6 +11,11 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        
+        /* 条款滚动条 */
+        .terms-scroll::-webkit-scrollbar { width: 6px; }
+        .terms-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .terms-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
@@ -34,11 +39,10 @@
     <!-- 主内容区 -->
     <main class="flex-1 overflow-y-auto relative w-full max-w-4xl mx-auto p-4 flex flex-col gap-5">
 
-        <!-- 配置警告弹窗 (配置已填入，理论上不会显示) -->
-        <div id="config-warning" class="hidden bg-red-50 border border-red-200 rounded-xl p-6 text-center shadow-lg mb-4">
-            <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-2"></i>
-            <h3 class="text-lg font-bold text-red-700">配置错误</h3>
-            <p class="text-sm text-red-600 mt-2">API Key 似乎无效，请检查代码。</p>
+        <!-- 欢迎/说明卡片 -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 text-sm text-blue-900 shadow-sm">
+            <h3 class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> 考试规则</h3>
+            <p>1. 系统将随机抽取 5 道题目。<br>2. 允许使用下方的 AI 助手。<br>3. <b>每人仅限提交一次</b>，系统已开启 IP 及实名检测。</p>
         </div>
 
         <!-- 1. 答题区域 -->
@@ -139,15 +143,46 @@
         </section>
     </main>
 
+    <!-- 知情同意书弹窗 -->
+    <div id="consent-modal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[85vh]">
+            <div class="p-5 border-b border-slate-200 bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-file-contract text-blue-600 mr-2"></i>研究参与知情同意书</h3>
+            </div>
+            
+            <div class="p-6 overflow-y-auto terms-scroll text-sm text-slate-600 leading-relaxed space-y-4">
+                <p>亲爱的同学：</p>
+                <p>欢迎参与本项关于“生成式 AI 辅助学习行为模式”的教学研究。在开始答题前，请您仔细阅读以下条款：</p>
+                
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>数据收集：</strong> 系统将记录您的答题内容、答题用时，以及您与 AI 助手的所有交互数据（包括提问内容、AI 回复、复制/粘贴操作等）。</li>
+                        <li><strong>隐私保护：</strong> 收集的数据仅用于学术研究与教学分析。我们将严格保密，数据在处理和发表时将进行去敏化处理，不会泄露您的个人身份信息。</li>
+                        <li><strong>自愿参与：</strong> 您的参与是完全自愿的。您可以选择在任何时候退出，这不会影响您的正常学业评价。</li>
+                        <li><strong>学术诚信：</strong> 请按照您真实的学习习惯使用 AI 辅助，系统记录旨在还原真实的学习过程。</li>
+                    </ul>
+                </div>
+                <p>点击下方的“确认”按钮，即表示您已充分理解上述内容，并同意授权我们收集和使用相关数据用于研究目的。</p>
+            </div>
+
+            <div class="p-5 border-t border-slate-200 bg-slate-50">
+                <label class="flex items-center gap-3 mb-4 cursor-pointer">
+                    <input type="checkbox" id="consent-checkbox" onchange="window.toggleConsentBtn()" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                    <span class="text-sm font-medium text-slate-700">我已阅读并同意参与本项研究</span>
+                </label>
+                <button id="btn-consent-confirm" onclick="window.confirmConsent()" disabled class="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10">
+                    确认并开始答题
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 逻辑代码 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================
-        // 🚨 已填入您的真实配置
-        // ==========================================
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
             authDomain: "ai-and-education-47d62.firebaseapp.com",
@@ -158,7 +193,6 @@
             measurementId: "G-Z8S8D9YN6D"
         };
         const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE";
-        // ==========================================
 
         const QUESTIONS_TO_FETCH = 5;
         let state = {
@@ -173,10 +207,29 @@
             user: null,
             db: null,
             appId: 'github-pages-v1',
-            isSubmitted: false // 新增状态：是否已提交
+            isSubmitted: false
         };
 
         const get = (id) => document.getElementById(id);
+
+        // --- 弹窗逻辑 ---
+        window.toggleConsentBtn = () => {
+            const checked = get('consent-checkbox').checked;
+            const btn = get('btn-consent-confirm');
+            btn.disabled = !checked;
+            if (checked) {
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
+            } else {
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.add('bg-slate-800', 'hover:bg-slate-700');
+            }
+        };
+
+        window.confirmConsent = () => {
+            get('consent-modal').classList.add('hidden');
+            window.startQuiz(state.studentName);
+        };
 
         function updateBtnState(enabled, text, iconClass = "fa-arrow-right") {
             const btn = get('btn-start');
@@ -202,12 +255,6 @@
 
         async function init() {
             detectIP();
-
-            if (FIREBASE_CONFIG.apiKey.startsWith("PLACEHOLDER")) {
-                document.getElementById('config-warning').classList.remove('hidden');
-                updateBtnState(false, "配置缺失", "fa-triangle-exclamation");
-                return;
-            }
 
             try {
                 const app = initializeApp(FIREBASE_CONFIG);
@@ -294,6 +341,7 @@
             const name = get('student-name').value.trim();
             if (!name) return;
 
+            // Alaric 直接开始，跳过弹窗和检测
             if (name === "Alaric") { window.startQuiz(name); return; }
 
             updateBtnState(false, "身份校验中...", "fa-spinner fa-spin");
@@ -311,7 +359,12 @@
                     if (!ipSnap.empty) throw new Error("该 IP 地址已提交过作业，每人限一次。");
                 }
 
-                window.startQuiz(name);
+                // 校验通过 -> 存储临时姓名 -> 弹出条款
+                state.studentName = name;
+                get('consent-modal').classList.remove('hidden');
+                
+                // 恢复按钮状态以便如果取消后可以重试
+                updateBtnState(true, "开始答题", "fa-arrow-right");
 
             } catch (e) {
                 get('error-msg').classList.remove('hidden');
@@ -396,7 +449,7 @@
                     timeout
                 ]);
 
-                // 提交成功，设置锁定状态
+                // 标记为已提交，锁定 AI
                 state.isSubmitted = true;
 
                 logAction('submission', 'Complete submission uploaded');
@@ -422,11 +475,13 @@
             const text = input.value.trim();
             if (!text) return;
 
-            // 1. 检查是否开始答题
-            if (!state.studentName) {
+            // 1. 检查是否开始答题（通过验证）
+            // 注意：state.studentName 只有在点击“确认同意条款”或“开始答题”后才会被赋值
+            // 如果 state.studentName 为空，说明用户还在输入名字阶段，此时不允许 AI 聊天
+            if (!state.studentName || document.getElementById('question-container').classList.contains('hidden')) {
                 appendMsg('user', text);
                 input.value = "";
-                setTimeout(() => appendMsg('ai', "⚠️ 请先在上方输入姓名并点击“开始答题”通过验证后，方可使用 AI 助教。"), 300);
+                setTimeout(() => appendMsg('ai', "⚠️ 请先在上方输入姓名并完成验证，进入答题界面后，方可使用 AI 助教。"), 300);
                 return;
             }
 
@@ -436,7 +491,7 @@
                 input.value = "";
                 setTimeout(() => {
                     appendMsg('ai', "测试结束，感谢你的配合");
-                    // 可选：将这条拒绝记录也上传，用于分析学生是否有提交后继续提问的意图
+                    // 可选：将这条拒绝记录也上传
                     logAction('chat_blocked', `Post-submission query: ${text}`);
                 }, 300);
                 return;
@@ -448,12 +503,6 @@
             logAction('chat_user', text);
 
             try {
-                if (GEMINI_API_KEY.startsWith("AIzaSy") && GEMINI_API_KEY.endsWith("HE")) {
-                    // key is valid format
-                } else {
-                     throw new Error("API Key Not Configured");
-                }
-
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -507,3 +556,5 @@
     </script>
 </body>
 </html>
+</html>
+
