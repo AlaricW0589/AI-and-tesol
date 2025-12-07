@@ -19,6 +19,7 @@
     <header class="bg-white shadow-sm border-b border-slate-200 p-4 shrink-0 z-10">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
+                <a href="index.html" class="text-slate-400 hover:text-blue-600 transition-colors mr-2" title="返回首页"><i class="fa-solid fa-house"></i></a>
                 <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
                     <i class="fa-solid fa-pen-nib"></i>
                 </div>
@@ -167,7 +168,7 @@
         // --- 初始化 (并发执行，防止 IP 阻塞 Firebase) ---
         async function init() {
             // 设置 API Key
-            state.apiKey = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE"; // 默认为空，等待环境注入
+            state.apiKey = ""; // 默认为空，等待环境注入
             
             // 1. 启动 IP 检测 (后台运行，设置超时)
             detectIP();
