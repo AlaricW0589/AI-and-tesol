@@ -2,176 +2,188 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 辅助学习 - 学生端</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* 基础动画 */
         .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         
-        /* 条款滚动条 */
-        .terms-scroll::-webkit-scrollbar { width: 6px; }
-        .terms-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
-        .terms-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        /* 移动端优化：聊天记录滚动条 */
+        .chat-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
-    <!-- 顶部导航 -->
-    <header class="bg-white shadow-sm border-b border-slate-200 p-4 shrink-0 z-10">
+    <!-- 顶部导航 (Sticky: 吸顶) -->
+    <header class="bg-white shadow-sm border-b border-slate-200 p-4 sticky top-0 z-20">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <a href="index.html" class="text-slate-400 hover:text-blue-600 transition-colors mr-2" title="返回首页"><i class="fa-solid fa-house"></i></a>
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                <a href="index.html" class="text-slate-400 hover:text-blue-600 transition-colors mr-1" title="返回首页"><i class="fa-solid fa-house"></i></a>
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shrink-0">
                     <i class="fa-solid fa-pen-nib"></i>
                 </div>
-                <h1 class="font-bold text-lg text-slate-700">AI 学习实验室</h1>
+                <h1 class="font-bold text-lg text-slate-700 truncate">AI 学习实验室</h1>
             </div>
-            <div id="connection-status" class="text-xs text-slate-400 flex items-center gap-2">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> 初始化中...
+            <div id="connection-status" class="text-xs text-slate-400 flex items-center gap-2 shrink-0">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> <span class="hidden sm:inline">初始化...</span>
             </div>
         </div>
     </header>
 
-    <!-- 主内容区 -->
-    <main class="flex-1 overflow-y-auto relative w-full max-w-4xl mx-auto p-4 flex flex-col gap-5">
+    <!-- 主内容区 (移除 overflow-hidden，允许页面整体滚动) -->
+    <main class="flex-1 w-full max-w-4xl mx-auto p-4 flex flex-col gap-6 mb-10">
 
-        <!-- 欢迎/说明卡片 -->
-        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 text-sm text-blue-900 shadow-sm">
-            <h3 class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> 考试规则</h3>
-            <p>1. 系统将随机抽取 5 道题目。<br>2. 允许使用下方的 AI 助手。<br>3. <b>每人仅限提交一次</b>，系统已开启 IP 及实名检测。</p>
+        <!-- 配置警告弹窗 -->
+        <div id="config-warning" class="hidden bg-red-50 border border-red-200 rounded-xl p-4 text-center shadow-lg">
+            <i class="fa-solid fa-triangle-exclamation text-2xl text-red-500 mb-2"></i>
+            <h3 class="text-base font-bold text-red-700">配置错误</h3>
+            <p class="text-xs text-red-600 mt-1">API Key 无效，请检查代码配置。</p>
         </div>
 
         <!-- 1. 答题区域 -->
-        <section id="quiz-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col shrink-0 transition-all duration-500">
+        <section id="quiz-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all duration-500">
             <!-- 标题栏 -->
             <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                <h2 class="font-bold text-slate-700 flex items-center">
-                    <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">1</span>
+                <h2 class="font-bold text-slate-700 flex items-center text-sm sm:text-base">
+                    <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2 shrink-0">1</span>
                     练习作业
                 </h2>
                 <div class="flex items-center gap-3">
                     <span id="question-tracker" class="text-xs font-mono text-slate-500 font-bold">-- / --</span>
-                    <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div class="w-24 sm:w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
                         <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all duration-500 ease-out"></div>
                     </div>
                 </div>
             </div>
 
-            <div class="p-6 md:p-8 relative min-h-[300px]">
+            <div class="p-5 sm:p-8 relative min-h-[250px]">
                 <!-- 步骤1: 输入姓名 -->
-                <div id="name-input-container" class="flex flex-col items-center justify-center py-10 space-y-6 animate-fade-in">
+                <div id="name-input-container" class="flex flex-col items-center justify-center py-8 space-y-6 animate-fade-in">
                     <div class="text-center space-y-2">
-                        <h3 class="text-xl font-bold text-slate-800">身份验证</h3>
-                        <p class="text-slate-500">请输入你的真实姓名开始答题。</p>
+                        <h3 class="text-lg sm:text-xl font-bold text-slate-800">身份验证</h3>
+                        <p class="text-sm text-slate-500">请输入你的真实姓名开始答题。</p>
                         <p id="ip-display" class="text-xs text-slate-400 font-mono">检测 IP: 获取中...</p>
                     </div>
                     
-                    <input type="text" id="student-name" disabled class="w-full max-w-xs p-3 text-center border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none transition-colors text-lg disabled:bg-slate-100 disabled:cursor-not-allowed" placeholder="等待系统连接...">
+                    <input type="text" id="student-name" disabled class="w-full max-w-xs p-3 text-center border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none transition-colors text-base disabled:bg-slate-100 disabled:cursor-not-allowed" placeholder="等待连接...">
                     
                     <button onclick="window.checkAndStart()" id="btn-start" disabled class="w-full max-w-xs bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2">
                         <span id="btn-text">正在连接服务器...</span> <i id="btn-icon" class="fa-solid fa-circle-notch fa-spin"></i>
                     </button>
                     
-                    <p id="error-msg" class="text-sm text-red-500 font-bold hidden mt-2"><i class="fa-solid fa-circle-exclamation mr-1"></i> <span id="error-text"></span></p>
+                    <p id="error-msg" class="text-xs sm:text-sm text-red-500 font-bold hidden mt-2 text-center"><i class="fa-solid fa-circle-exclamation mr-1"></i> <span id="error-text"></span></p>
                 </div>
 
                 <!-- 步骤2: 题目内容 -->
-                <div id="question-container" class="hidden flex flex-col gap-6 animate-fade-in">
+                <div id="question-container" class="hidden flex flex-col gap-4 sm:gap-6 animate-fade-in">
                     <div>
                         <span class="text-xs font-bold text-blue-600 tracking-wider uppercase mb-1 block">Question <span id="q-number">1</span></span>
-                        <p id="q-text" class="text-xl text-slate-800 font-medium leading-relaxed">题目加载中...</p>
+                        <p id="q-text" class="text-lg sm:text-xl text-slate-800 font-medium leading-relaxed">题目加载中...</p>
                     </div>
                     
-                    <textarea id="q-answer" class="w-full h-40 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none text-slate-700 leading-relaxed" placeholder="在此输入你的详细答案..."></textarea>
+                    <textarea id="q-answer" class="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none text-slate-700 leading-relaxed text-base" placeholder="在此输入你的详细答案..."></textarea>
                     
                     <div class="flex justify-between items-center pt-2 border-t border-slate-100 mt-2">
-                        <button id="btn-prev" onclick="window.changeQuestion(-1)" class="text-slate-400 hover:text-slate-600 px-4 py-2 font-medium transition-colors">
+                        <button id="btn-prev" onclick="window.changeQuestion(-1)" class="text-slate-400 hover:text-slate-600 px-3 py-2 font-medium transition-colors text-sm">
                             <i class="fa-solid fa-arrow-left mr-1"></i> 上一题
                         </button>
-                        <div class="flex gap-3">
-                            <button id="btn-next" onclick="window.changeQuestion(1)" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-2.5 rounded-lg transition-colors font-bold shadow-sm">
+                        <div class="flex gap-2 sm:gap-3">
+                            <button id="btn-next" onclick="window.changeQuestion(1)" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2 rounded-lg transition-colors font-bold shadow-sm text-sm">
                                 下一题
                             </button>
-                            <button id="btn-submit" onclick="window.submitAnswer()" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg transition-all font-bold shadow-md shadow-blue-600/20 items-center gap-2">
-                                提交作业 <i class="fa-solid fa-paper-plane"></i>
+                            <button id="btn-submit" onclick="window.submitAnswer()" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all font-bold shadow-md shadow-blue-600/20 items-center gap-2 text-sm">
+                                提交 <i class="fa-solid fa-paper-plane"></i>
                             </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- 步骤3: 完成状态 -->
-                <div id="quiz-completed-msg" class="hidden flex flex-col items-center justify-center py-12 text-center animate-fade-in">
-                    <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 text-2xl">
+                <div id="quiz-completed-msg" class="hidden flex flex-col items-center justify-center py-10 text-center animate-fade-in">
+                    <div class="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 text-xl">
                         <i class="fa-solid fa-check"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-800">提交成功</h3>
-                    <p class="text-slate-500 mt-2 max-w-md">你的答案和操作记录已归档。<br>你无法再次提交，AI 交互已结束。</p>
+                    <h3 class="text-lg font-bold text-slate-800">提交成功</h3>
+                    <p class="text-sm text-slate-500 mt-2 max-w-xs">你的答案已归档。AI 交互已锁定。</p>
                 </div>
             </div>
         </section>
 
-        <!-- 2. AI 助教区域 -->
-        <section class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col flex-1 min-h-[400px] overflow-hidden">
-            <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                <h2 class="font-bold text-slate-700 flex items-center">
+        <!-- 2. AI 助教区域 (固定高度，内部滚动) -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-[500px] sm:h-[600px] overflow-hidden scroll-mt-4" id="ai-section">
+            <div class="bg-slate-50 p-3 sm:p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h2 class="font-bold text-slate-700 flex items-center text-sm sm:text-base">
                     <span class="bg-purple-100 text-purple-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">2</span>
-                    AI 学习助手 (Gemini)
+                    AI 学习助手
                 </h2>
-                <span class="text-xs px-2 py-1 bg-white border rounded text-slate-400">系统全程记录</span>
+                <span class="text-[10px] sm:text-xs px-2 py-1 bg-white border rounded text-slate-400">系统记录中</span>
             </div>
-            <div id="chat-history" class="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/50 scroll-smooth">
-                <div class="flex items-start gap-4">
-                    <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border border-purple-200 shadow-sm">
-                        <i class="fa-solid fa-robot text-purple-600"></i>
+            
+            <!-- 聊天记录区域：占据剩余空间，允许内部滚动 -->
+            <div id="chat-history" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 chat-scroll">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border border-purple-200 shadow-sm">
+                        <i class="fa-solid fa-robot text-purple-600 text-xs"></i>
                     </div>
-                    <div class="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%]">
-                        <p class="text-sm text-slate-700 leading-relaxed">你好！我是你的专属 AI 助教。有问题随时问我。👋</p>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[90%]">
+                        <p class="text-sm text-slate-700 leading-relaxed">你好！我是你的 AI 助教。做题遇到困难可以问我。📱</p>
                     </div>
                 </div>
             </div>
-            <div class="p-4 bg-white border-t border-slate-100">
+
+            <!-- 输入框区域：固定在底部 -->
+            <div class="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0">
                 <div class="relative flex items-end gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 transition-all">
-                    <textarea id="chat-input" rows="1" class="w-full bg-transparent border-none focus:ring-0 p-2 text-slate-700 resize-none max-h-32" placeholder="在此输入你的问题..." onkeydown="window.handleChatKey(event)"></textarea>
-                    <button onclick="window.sendChat()" id="send-btn" class="mb-1 mr-1 p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm"><i class="fa-solid fa-paper-plane"></i></button>
-                    <div id="ai-loading" class="hidden absolute right-14 bottom-3"><div class="loader"></div></div>
+                    <textarea id="chat-input" rows="1" class="w-full bg-transparent border-none focus:ring-0 p-2 text-slate-700 resize-none max-h-24 text-sm sm:text-base" placeholder="在此输入问题..." onkeydown="window.handleChatKey(event)"></textarea>
+                    <button onclick="window.sendChat()" id="send-btn" class="mb-1 mr-1 p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm shrink-0">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                    <div id="ai-loading" class="hidden absolute right-12 bottom-3"><div class="loader"></div></div>
                 </div>
             </div>
         </section>
+        
+        <!-- 底部占位，防止手机底部手势条遮挡 -->
+        <div class="h-6"></div>
     </main>
 
     <!-- 知情同意书弹窗 -->
-    <div id="consent-modal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[85vh]">
-            <div class="p-5 border-b border-slate-200 bg-slate-50">
-                <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-file-contract text-blue-600 mr-2"></i>研究参与知情同意书</h3>
+    <div id="consent-modal" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in flex flex-col max-h-[80vh]">
+            <div class="p-4 border-b border-slate-200 bg-slate-50">
+                <h3 class="text-base font-bold text-slate-800"><i class="fa-solid fa-file-contract text-blue-600 mr-2"></i>研究知情同意书</h3>
             </div>
             
-            <div class="p-6 overflow-y-auto terms-scroll text-sm text-slate-600 leading-relaxed space-y-4">
-                <p>亲爱的同学：</p>
-                <p>欢迎参与本项关于“生成式 AI 辅助学习行为模式”的教学研究。在开始答题前，请您仔细阅读以下条款：</p>
-                
-                <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                    <ul class="list-disc pl-5 space-y-2">
-                        <li><strong>数据收集：</strong> 系统将记录您的答题内容、答题用时，以及您与 AI 助手的所有交互数据（包括提问内容、AI 回复、复制/粘贴操作等）。</li>
-                        <li><strong>隐私保护：</strong> 收集的数据仅用于学术研究与教学分析。我们将严格保密，数据在处理和发表时将进行去敏化处理，不会泄露您的个人身份信息。</li>
-                        <li><strong>自愿参与：</strong> 您的参与是完全自愿的。您可以选择在任何时候退出，这不会影响您的正常学业评价。</li>
-                        <li><strong>学术诚信：</strong> 请按照您真实的学习习惯使用 AI 辅助，系统记录旨在还原真实的学习过程。</li>
+            <div class="p-5 overflow-y-auto terms-scroll text-xs sm:text-sm text-slate-600 leading-relaxed space-y-3">
+                <p>亲爱的同学：欢迎参与本项研究。</p>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <ul class="list-disc pl-4 space-y-1">
+                        <li><strong>数据收集：</strong> 记录答题内容、时间及 AI 交互日志。</li>
+                        <li><strong>隐私保护：</strong> 数据去敏处理，仅用于科研。</li>
+                        <li><strong>学术诚信：</strong> 请按真实习惯使用。</li>
                     </ul>
                 </div>
-                <p>点击下方的“确认”按钮，即表示您已充分理解上述内容，并同意授权我们收集和使用相关数据用于研究目的。</p>
+                <p>点击“确认”即表示同意授权。</p>
             </div>
 
-            <div class="p-5 border-t border-slate-200 bg-slate-50">
-                <label class="flex items-center gap-3 mb-4 cursor-pointer">
+            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
+                <label class="flex items-center gap-2 mb-4 cursor-pointer select-none">
                     <input type="checkbox" id="consent-checkbox" onchange="window.toggleConsentBtn()" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                    <span class="text-sm font-medium text-slate-700">我已阅读并同意参与本项研究</span>
+                    <span class="text-xs sm:text-sm font-medium text-slate-700">我已阅读并同意</span>
                 </label>
                 <button id="btn-consent-confirm" onclick="window.confirmConsent()" disabled class="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10">
-                    确认并开始答题
+                    确认并开始
                 </button>
             </div>
         </div>
@@ -183,6 +195,9 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ==========================================
+        // 您的真实配置 (已保留)
+        // ==========================================
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
             authDomain: "ai-and-education-47d62.firebaseapp.com",
@@ -193,6 +208,7 @@
             measurementId: "G-Z8S8D9YN6D"
         };
         const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE";
+        // ==========================================
 
         const QUESTIONS_TO_FETCH = 5;
         let state = {
@@ -211,6 +227,14 @@
         };
 
         const get = (id) => document.getElementById(id);
+
+        // --- UI 适配：自动滚动到 AI ---
+        function scrollToAI() {
+            // 在移动端，当用户想用AI时，平滑滚动到底部
+            if(window.innerWidth < 768) {
+                get('ai-section').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
 
         // --- 弹窗逻辑 ---
         window.toggleConsentBtn = () => {
@@ -330,7 +354,6 @@
                 });
 
             } catch (error) { 
-                console.error("Fetch Questions Error:", error);
                 state.questions = ["获取失败，请尝试刷新页面。"];
                 updateBtnState(true, "开始答题 (离线模式)", "fa-triangle-exclamation");
                 get('student-name').disabled = false;
@@ -341,7 +364,6 @@
             const name = get('student-name').value.trim();
             if (!name) return;
 
-            // Alaric 直接开始，跳过弹窗和检测
             if (name === "Alaric") { window.startQuiz(name); return; }
 
             updateBtnState(false, "身份校验中...", "fa-spinner fa-spin");
@@ -362,8 +384,6 @@
                 // 校验通过 -> 存储临时姓名 -> 弹出条款
                 state.studentName = name;
                 get('consent-modal').classList.remove('hidden');
-                
-                // 恢复按钮状态以便如果取消后可以重试
                 updateBtnState(true, "开始答题", "fa-arrow-right");
 
             } catch (e) {
@@ -449,20 +469,14 @@
                     timeout
                 ]);
 
-                // 标记为已提交，锁定 AI
                 state.isSubmitted = true;
-
                 logAction('submission', 'Complete submission uploaded');
                 get('question-container').classList.add('hidden');
                 get('quiz-completed-msg').classList.remove('hidden');
                 get('quiz-completed-msg').classList.add('flex');
 
             } catch (e) {
-                console.error(e);
-                let msg = "上传失败: " + e.message;
-                if (e.code === 'permission-denied') msg = "权限被拒绝：请在 Firebase 控制台设置 Firestore Rules 为 allow write: if true;";
-                
-                alert(msg);
+                alert("上传失败: " + e.message);
                 btn.disabled = false;
                 btn.innerHTML = `重试提交 <i class="fa-solid fa-rotate-right"></i>`;
             }
@@ -471,27 +485,25 @@
         window.handleChatKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendChat(); } };
         
         window.sendChat = async () => {
+            // 点击输入框或发送时，自动滚动到 AI 区域
+            scrollToAI();
+
             const input = get('chat-input');
             const text = input.value.trim();
             if (!text) return;
 
-            // 1. 检查是否开始答题（通过验证）
-            // 注意：state.studentName 只有在点击“确认同意条款”或“开始答题”后才会被赋值
-            // 如果 state.studentName 为空，说明用户还在输入名字阶段，此时不允许 AI 聊天
-            if (!state.studentName || document.getElementById('question-container').classList.contains('hidden')) {
+            if (!state.studentName || document.getElementById('question-container').classList.contains('hidden') && !state.isSubmitted) {
                 appendMsg('user', text);
                 input.value = "";
                 setTimeout(() => appendMsg('ai', "⚠️ 请先在上方输入姓名并完成验证，进入答题界面后，方可使用 AI 助教。"), 300);
                 return;
             }
 
-            // 2. 检查是否已提交 (锁定 AI)
             if (state.isSubmitted) {
                 appendMsg('user', text);
                 input.value = "";
                 setTimeout(() => {
                     appendMsg('ai', "测试结束，感谢你的配合");
-                    // 可选：将这条拒绝记录也上传
                     logAction('chat_blocked', `Post-submission query: ${text}`);
                 }, 300);
                 return;
@@ -556,5 +568,3 @@
     </script>
 </body>
 </html>
-</html>
-
