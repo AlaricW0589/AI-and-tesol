@@ -3,245 +3,398 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>研究后台 - 题库管理系统</title>
+    <title>AI 辅助学习 - 学生端</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* 自定义滚动条 */
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
 
-    <!-- 1. 登录锁定遮罩 -->
-    <div id="lock-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fa-solid fa-database text-2xl text-blue-600"></i>
+    <!-- 顶部导航 -->
+    <header class="bg-white shadow-sm border-b border-slate-200 p-4 shrink-0 z-10">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                    <i class="fa-solid fa-pen-nib"></i>
+                </div>
+                <h1 class="font-bold text-lg text-slate-700">AI 学习实验室</h1>
             </div>
-            <h2 class="text-xl font-bold mb-2 text-slate-800">题库管理后台</h2>
-            <p class="text-slate-500 text-sm mb-6">请输入密码以录入或编辑题目。</p>
-            <input type="password" id="password-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-center focus:border-blue-500 outline-none mb-4 tracking-widest transition-all" placeholder="••••">
-            <button onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20">
-                进入系统
-            </button>
-        </div>
-    </div>
-
-    <!-- 2. 顶部导航 -->
-    <header class="bg-white border-b border-slate-200 p-4 shrink-0 flex justify-between items-center shadow-sm z-10">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 text-white p-2 rounded-lg">
-                <i class="fa-solid fa-layer-group"></i>
+            <div id="connection-status" class="text-xs text-slate-400 flex items-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> 初始化...
             </div>
-            <h1 class="font-bold text-lg text-slate-700">题库中心</h1>
-        </div>
-        <div class="text-sm text-slate-500" id="status-indicator">
-            <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 连接中...
         </div>
     </header>
 
-    <!-- 3. 主内容区 -->
-    <main class="flex-1 overflow-hidden flex flex-col md:flex-row">
-        
-        <!-- 左侧：录入区域 -->
-        <div class="w-full md:w-1/3 bg-white p-6 border-r border-slate-200 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
-            <h2 class="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
-                <i class="fa-solid fa-plus-circle text-blue-500"></i> 新增题目
-            </h2>
-            
-            <div class="flex-1 flex flex-col gap-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">题目内容</label>
-                    <textarea id="new-question-text" class="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-slate-700 leading-relaxed" placeholder="在此输入题目描述..."></textarea>
-                </div>
-                
-                <button onclick="window.addQuestion()" id="btn-add" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md">
-                    <i class="fa-solid fa-save"></i> 录入题库
-                </button>
-                <p id="add-msg" class="text-center text-xs text-green-600 font-bold opacity-0 transition-opacity">
-                    <i class="fa-solid fa-check"></i> 录入成功
-                </p>
-            </div>
-            
-            <div class="mt-6 bg-blue-50 p-4 rounded-lg text-xs text-blue-700 border border-blue-100">
-                <i class="fa-solid fa-lightbulb mr-1"></i> 提示：学生端答题时，系统会自动从右侧题库列表中<b>随机抽取 5 道题</b>供学生作答。
-            </div>
+    <!-- 主内容区 -->
+    <main class="flex-1 overflow-y-auto relative w-full max-w-4xl mx-auto p-4 flex flex-col gap-5">
+
+        <!-- 欢迎/说明卡片 -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 text-sm text-blue-900 shadow-sm">
+            <h3 class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> 考试规则</h3>
+            <p>1. 系统将随机抽取 5 道题目。<br>2. 允许使用下方的 AI 助手。<br>3. <b>每人仅限提交一次</b>，系统已开启 IP 及实名检测。</p>
         </div>
 
-        <!-- 右侧：列表与搜索区域 -->
-        <div class="w-full md:w-2/3 bg-slate-50 p-6 flex flex-col h-full overflow-hidden">
-            <div class="flex justify-between items-center mb-4 shrink-0">
-                <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-list-ul text-slate-400"></i> 现有题库
-                    <span id="total-count" class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">0</span>
+        <!-- 1. 答题区域 -->
+        <section id="quiz-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col shrink-0 transition-all duration-500">
+            <!-- 标题栏 -->
+            <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-700 flex items-center">
+                    <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">1</span>
+                    练习作业
                 </h2>
-                <!-- 搜索框 -->
-                <div class="relative w-64">
-                    <input type="text" id="search-input" oninput="window.filterQuestions()" class="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none text-sm shadow-sm" placeholder="搜索题目关键词...">
-                    <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                <div class="flex items-center gap-3">
+                    <span id="question-tracker" class="text-xs font-mono text-slate-500 font-bold">-- / --</span>
+                    <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all duration-500 ease-out"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 列表容器 -->
-            <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3" id="questions-list">
-                <!-- JS 动态填充 -->
-                <div class="text-center text-slate-400 py-10">
-                    <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
-                    <p>加载数据中...</p>
+            <div class="p-6 md:p-8 relative min-h-[300px]">
+                <!-- 步骤1: 输入姓名 -->
+                <div id="name-input-container" class="flex flex-col items-center justify-center py-10 space-y-6 animate-fade-in">
+                    <div class="text-center space-y-2">
+                        <h3 class="text-xl font-bold text-slate-800">身份验证</h3>
+                        <p class="text-slate-500">请输入你的真实姓名开始答题。</p>
+                        <p id="ip-display" class="text-xs text-slate-400 font-mono">检测 IP: 获取中...</p>
+                    </div>
+                    <input type="text" id="student-name" class="w-full max-w-xs p-3 text-center border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none transition-colors text-lg" placeholder="输入姓名">
+                    
+                    <button onclick="window.checkAndStart()" id="btn-start" disabled class="w-full max-w-xs bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2">
+                        <span>开始答题</span> <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <p id="error-msg" class="text-sm text-red-500 font-bold hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i> <span id="error-text"></span></p>
+                </div>
+
+                <!-- 步骤2: 题目内容 -->
+                <div id="question-container" class="hidden flex flex-col gap-6 animate-fade-in">
+                    <div>
+                        <span class="text-xs font-bold text-blue-600 tracking-wider uppercase mb-1 block">Question <span id="q-number">1</span></span>
+                        <p id="q-text" class="text-xl text-slate-800 font-medium leading-relaxed">题目加载中...</p>
+                    </div>
+                    
+                    <textarea id="q-answer" class="w-full h-40 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none text-slate-700 leading-relaxed" placeholder="在此输入你的详细答案..."></textarea>
+                    
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-100 mt-2">
+                        <button id="btn-prev" onclick="window.changeQuestion(-1)" class="text-slate-400 hover:text-slate-600 px-4 py-2 font-medium transition-colors">
+                            <i class="fa-solid fa-arrow-left mr-1"></i> 上一题
+                        </button>
+                        <div class="flex gap-3">
+                            <button id="btn-next" onclick="window.changeQuestion(1)" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-2.5 rounded-lg transition-colors font-bold shadow-sm">
+                                下一题
+                            </button>
+                            <button id="btn-submit" onclick="window.submitAnswer()" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg transition-all font-bold shadow-md shadow-blue-600/20 items-center gap-2">
+                                提交作业 <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤3: 完成状态 -->
+                <div id="quiz-completed-msg" class="hidden flex flex-col items-center justify-center py-12 text-center animate-fade-in">
+                    <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 text-2xl">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800">提交成功</h3>
+                    <p class="text-slate-500 mt-2 max-w-md">你的答案和操作记录已归档。<br>你无法再次提交，但可以继续与 AI 对话。</p>
                 </div>
             </div>
-        </div>
+        </section>
 
+        <!-- 2. AI 助教区域 -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col flex-1 min-h-[400px] overflow-hidden">
+            <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-700 flex items-center">
+                    <span class="bg-purple-100 text-purple-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">2</span>
+                    AI 学习助手 (Gemini)
+                </h2>
+                <span class="text-xs px-2 py-1 bg-white border rounded text-slate-400">系统全程记录</span>
+            </div>
+            <div id="chat-history" class="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/50 scroll-smooth">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border border-purple-200 shadow-sm">
+                        <i class="fa-solid fa-robot text-purple-600"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%]">
+                        <p class="text-sm text-slate-700 leading-relaxed">你好！我是你的专属 AI 助教。有问题随时问我。👋</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-white border-t border-slate-100">
+                <div class="relative flex items-end gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 transition-all">
+                    <textarea id="chat-input" rows="1" class="w-full bg-transparent border-none focus:ring-0 p-2 text-slate-700 resize-none max-h-32" placeholder="在此输入你的问题..." onkeydown="window.handleChatKey(event)"></textarea>
+                    <button onclick="window.sendChat()" id="send-btn" class="mb-1 mr-1 p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm"><i class="fa-solid fa-paper-plane"></i></button>
+                    <div id="ai-loading" class="hidden absolute right-14 bottom-3"><div class="loader"></div></div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- 逻辑代码 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 全局状态
-        let db;
-        let allQuestions = []; // 本地缓存用于搜索
+        // --- 配置 ---
+        const QUESTIONS_TO_FETCH = 5;
+        let state = {
+            studentName: "",
+            clientIP: "",
+            currentQuestionIndex: 0,
+            answers: {},
+            quizStartTime: null,
+            questionStartTime: null,
+            questionDurations: {},
+            questions: [], 
+            user: null,
+            db: null,
+            appId: typeof __app_id !== 'undefined' ? __app_id : 'default-app',
+            apiKey: "" 
+        };
 
-        // 1. 初始化
+        const get = (id) => document.getElementById(id);
+
+        // --- 初始化 & IP检测 ---
         async function init() {
-            const app = initializeApp(JSON.parse(__firebase_config || '{}'));
-            const auth = getAuth(app);
-            db = getFirestore(app);
-
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            // 1. 获取IP
+            try {
+                const ipRes = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipRes.json();
+                state.clientIP = ipData.ip;
+                get('ip-display').innerText = `检测 IP: ${state.clientIP}`;
+            } catch (e) {
+                state.clientIP = "unknown-ip";
+                get('ip-display').innerText = `IP检测失败 (离线模式)`;
             }
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 系统已连接</span>';
-                    startListening();
+            // 2. Firebase
+            try {
+                const app = initializeApp(JSON.parse(__firebase_config || '{}'));
+                const auth = getAuth(app);
+                state.db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
                 }
-            });
-        }
 
-        // 2. 实时监听题库
-        function startListening() {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'question_bank');
-            
-            // 按时间倒序监听
-            onSnapshot(query(qRef, orderBy('timestamp', 'desc')), (snapshot) => {
-                allQuestions = [];
-                snapshot.forEach(doc => {
-                    allQuestions.push({ id: doc.id, ...doc.data() });
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        state.user = user;
+                        get('connection-status').innerHTML = '<span class="text-green-500 font-bold">● 系统就绪</span>';
+                        await fetchAndRandomizeQuestions();
+                        get('btn-start').disabled = false;
+                        
+                        get('student-name').addEventListener('input', (e) => {
+                            if(state.questions.length > 0) get('btn-start').disabled = !e.target.value.trim();
+                        });
+                    }
                 });
-                renderList(allQuestions);
-            });
+            } catch (e) { console.error(e); }
         }
 
-        // 3. 渲染列表
-        function renderList(list) {
-            const container = document.getElementById('questions-list');
-            document.getElementById('total-count').innerText = list.length;
-            container.innerHTML = '';
+        async function fetchAndRandomizeQuestions() {
+            try {
+                const qRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'question_bank');
+                const snapshot = await getDocs(qRef);
+                const allQuestions = [];
+                snapshot.forEach(doc => allQuestions.push(doc.data().text));
 
-            if (list.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-slate-400 py-10 border-2 border-dashed border-slate-200 rounded-xl">
-                        <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
-                        <p>暂无题目，请在左侧录入。</p>
-                    </div>`;
+                if (allQuestions.length === 0) {
+                    state.questions = ["示例题目：请描述人工智能的定义。", "示例题目：1+1等于几？"];
+                } else {
+                    for (let i = allQuestions.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+                    }
+                    state.questions = allQuestions.slice(0, QUESTIONS_TO_FETCH);
+                }
+            } catch (error) { state.questions = ["获取题目失败，请刷新重试。"]; }
+        }
+
+        // --- 核心：资格检查与开始 ---
+        window.checkAndStart = async () => {
+            const name = get('student-name').value.trim();
+            if (!name) return;
+
+            // --- 特权通道 (管理员 Alaric) ---
+            if (name === "Alaric") {
+                console.log("管理员通道已激活：跳过重复检测");
+                window.startQuiz(name);
                 return;
             }
+            // -----------------------------
 
-            list.forEach(q => {
-                const div = document.createElement('div');
-                div.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group animate-fade-in flex justify-between items-start gap-4";
-                div.innerHTML = `
-                    <div class="flex-1">
-                        <p class="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">${q.text}</p>
-                        <p class="text-[10px] text-slate-400 mt-2">ID: ${q.id.substring(0,6)}... • ${q.timestamp ? new Date(q.timestamp.seconds*1000).toLocaleString() : '刚刚'}</p>
-                    </div>
-                    <button onclick="window.deleteQuestion('${q.id}')" class="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="删除题目">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                `;
-                container.appendChild(div);
-            });
+            const btn = get('btn-start');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 校验中...`;
+            get('error-msg').classList.add('hidden');
+
+            try {
+                const colRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'submissions_v2');
+                
+                // 检查姓名
+                const nameQuery = query(colRef, where("studentName", "==", name));
+                const nameSnap = await getDocs(nameQuery);
+                if (!nameSnap.empty) throw new Error("该姓名已提交过作业，请勿重复答题。");
+
+                // 检查IP (如果IP不是 unknown)
+                if (state.clientIP !== "unknown-ip") {
+                    const ipQuery = query(colRef, where("ipAddress", "==", state.clientIP));
+                    const ipSnap = await getDocs(ipQuery);
+                    if (!ipSnap.empty) throw new Error("该 IP 地址已提交过作业，每人限一次。");
+                }
+
+                // 校验通过
+                window.startQuiz(name);
+
+            } catch (e) {
+                get('error-msg').classList.remove('hidden');
+                get('error-text').innerText = e.message;
+                btn.disabled = false;
+                btn.innerHTML = `<span>开始答题</span> <i class="fa-solid fa-arrow-right"></i>`;
+            }
+        };
+
+        window.startQuiz = (name) => {
+            state.studentName = name;
+            state.quizStartTime = Date.now();
+            get('name-input-container').classList.add('hidden');
+            get('question-container').classList.remove('hidden');
+            state.questions.forEach((_, i) => state.questionDurations[i] = 0);
+            renderQuestion();
+            logAction('system', `Started quiz: ${name} (IP: ${state.clientIP})`);
+        };
+
+        function renderQuestion() {
+            const idx = state.currentQuestionIndex;
+            get('q-number').textContent = idx + 1;
+            get('q-text').textContent = state.questions[idx];
+            get('q-answer').value = state.answers[idx] || "";
+            get('question-tracker').textContent = `${idx + 1} / ${state.questions.length}`;
+            get('progress-bar').style.width = `${((idx + 1) / state.questions.length) * 100}%`;
+            get('btn-prev').disabled = idx === 0;
+            get('btn-prev').style.opacity = idx === 0 ? '0' : '1';
+            
+            if (idx === state.questions.length - 1) {
+                get('btn-next').classList.add('hidden');
+                get('btn-submit').classList.remove('hidden');
+                get('btn-submit').classList.add('flex');
+            } else {
+                get('btn-next').classList.remove('hidden');
+                get('btn-submit').classList.add('hidden');
+                get('btn-submit').classList.remove('flex');
+            }
+            state.questionStartTime = Date.now();
         }
 
-        // 4. 新增题目
-        window.addQuestion = async () => {
-            const input = document.getElementById('new-question-text');
-            const text = input.value.trim();
-            if (!text) return alert("请输入题目内容");
+        window.changeQuestion = (delta) => {
+            if (state.questionStartTime) {
+                state.questionDurations[state.currentQuestionIndex] = (state.questionDurations[state.currentQuestionIndex] || 0) + (Date.now() - state.questionStartTime);
+                state.questionStartTime = null;
+            }
+            state.answers[state.currentQuestionIndex] = get('q-answer').value;
+            state.currentQuestionIndex += delta;
+            renderQuestion();
+        };
 
-            const btn = document.getElementById('btn-add');
-            const originalText = btn.innerHTML;
+        window.submitAnswer = async () => {
+            if (!confirm("确定要提交吗？提交后无法修改。")) return;
+            const btn = get('btn-submit');
             btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 保存中...`;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 上传中...`;
+
+            if (state.questionStartTime) {
+                state.questionDurations[state.currentQuestionIndex] = (state.questionDurations[state.currentQuestionIndex] || 0) + (Date.now() - state.questionStartTime);
+            }
+            state.answers[state.currentQuestionIndex] = get('q-answer').value;
+
+            const submissionData = {
+                studentName: state.studentName,
+                userId: state.user.uid,
+                ipAddress: state.clientIP, // 保存IP
+                timestamp: serverTimestamp(),
+                totalTimeSeconds: Math.floor((Date.now() - state.quizStartTime) / 1000),
+                details: state.questions.map((q, idx) => ({
+                    qNum: idx + 1,
+                    question: q,
+                    answer: state.answers[idx] || "(未作答)",
+                    durationMs: state.questionDurations[idx] || 0
+                }))
+            };
 
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'question_bank'), {
-                    text: text,
-                    timestamp: serverTimestamp()
-                });
-
-                // 成功反馈
-                input.value = '';
-                const msg = document.getElementById('add-msg');
-                msg.classList.remove('opacity-0');
-                setTimeout(() => msg.classList.add('opacity-0'), 2000);
-
+                await addDoc(collection(state.db, 'artifacts', state.appId, 'public', 'data', 'submissions_v2'), submissionData);
+                logAction('submission', 'Complete submission uploaded');
+                get('question-container').classList.add('hidden');
+                get('quiz-completed-msg').classList.remove('hidden');
+                get('quiz-completed-msg').classList.add('flex');
             } catch (e) {
-                alert("录入失败: " + e.message);
-            } finally {
+                alert("上传失败: " + e.message);
                 btn.disabled = false;
-                btn.innerHTML = originalText;
+                btn.innerHTML = `重试 <i class="fa-solid fa-rotate-right"></i>`;
             }
         };
 
-        // 5. 删除题目
-        window.deleteQuestion = async (id) => {
-            if (!confirm("确定要永久删除这道题目吗？")) return;
+        // --- Chat & Log ---
+        window.handleChatKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendChat(); } };
+        window.sendChat = async () => {
+            const input = get('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            appendMsg('user', text);
+            input.value = "";
+            get('ai-loading').classList.remove('hidden');
+            logAction('chat_user', text);
+
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'question_bank', id));
-            } catch (e) {
-                alert("删除失败");
-            }
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${state.apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: text }] }], systemInstruction: { parts: [{ text: "纯文本回答，禁止Markdown。" }] } })
+                });
+                const data = await res.json();
+                let aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "系统繁忙";
+                aiText = aiText.replace(/[*#]/g, '');
+                appendMsg('ai', aiText);
+                logAction('chat_ai', aiText);
+            } catch (e) { appendMsg('ai', "网络错误"); } finally { get('ai-loading').classList.add('hidden'); }
         };
 
-        // 6. 搜索过滤
-        window.filterQuestions = () => {
-            const term = document.getElementById('search-input').value.toLowerCase();
-            const filtered = allQuestions.filter(q => q.text.toLowerCase().includes(term));
-            renderList(filtered);
-        };
+        function appendMsg(role, text) {
+            const div = document.createElement('div');
+            div.className = "flex items-start gap-4 animate-fade-in";
+            const isUser = role === 'user';
+            div.innerHTML = `
+                ${!isUser ? `<div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border border-purple-200"><i class="fa-solid fa-robot text-purple-600"></i></div>` : ''}
+                <div class="${isUser ? 'ml-auto bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'} p-4 rounded-2xl shadow-sm max-w-[85%] text-sm whitespace-pre-wrap leading-relaxed">${text}</div>
+                ${isUser ? `<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 border border-blue-200"><i class="fa-solid fa-user text-blue-600"></i></div>` : ''}
+            `;
+            const hist = get('chat-history');
+            hist.appendChild(div);
+            hist.scrollTo({ top: hist.scrollHeight, behavior: 'smooth' });
+        }
 
-        // 7. 密码逻辑
-        window.checkPassword = () => {
-            const input = document.getElementById('password-input');
-            if (input.value === '1234') {
-                document.getElementById('lock-screen').classList.add('hidden');
-                init();
-            } else {
-                alert('密码错误');
-                input.value = '';
-            }
-        };
-        
-        document.getElementById('password-input').addEventListener('keydown', (e) => {
-            if(e.key === 'Enter') window.checkPassword();
-        });
+        async function logAction(type, content) {
+            if (!state.user) return;
+            try { await addDoc(collection(state.db, 'artifacts', state.appId, 'public', 'data', 'chat_logs'), {
+                type, content: content.substring(0, 500), timestamp: serverTimestamp(),
+                studentName: state.studentName || "Anonymous", userId: state.user.uid
+            }); } catch (e) {}
+        }
 
+        get('chat-history').addEventListener('copy', () => { if (document.getSelection().toString()) logAction('copy', `Copied: "${document.getSelection().toString()}"`); });
+        get('q-answer').addEventListener('paste', (e) => { logAction('paste', `Pasted Q${state.currentQuestionIndex+1}: "${(e.clipboardData || window.clipboardData).getData('Text')}"`); });
+
+        init();
     </script>
 </body>
 </html>
+
