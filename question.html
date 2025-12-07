@@ -25,10 +25,13 @@
             </div>
             <h2 class="text-xl font-bold mb-2 text-slate-800">题库管理后台</h2>
             <p class="text-slate-500 text-sm mb-6">请输入密码以录入或编辑题目。</p>
+            
             <input type="password" id="password-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-center focus:border-blue-500 outline-none mb-4 tracking-widest transition-all" placeholder="••••">
-            <button onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20">
-                进入系统
+            
+            <button id="btn-login" onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                <span>进入系统</span> <i class="fa-solid fa-arrow-right"></i>
             </button>
+            <p id="login-error" class="text-red-500 text-xs mt-3 hidden"></p>
         </div>
     </div>
 
@@ -107,46 +110,76 @@
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- 立即初始化 App 和 DB ---
-        const firebaseConfig = JSON.parse(__firebase_config || '{}');
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app); // DB 现在在页面加载时立即就绪
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        let db;
+        let auth;
+        let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        let allQuestions = [];
 
-        // 全局状态
-        let allQuestions = []; // 本地缓存用于搜索
+        try {
+            const firebaseConfig = JSON.parse(__firebase_config || '{}');
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            console.log("Firebase initialized");
+        } catch (e) {
+            console.error("Init Error", e);
+            document.getElementById('status-indicator').innerHTML = '<span class="text-red-500">配置错误</span>';
+        }
 
-        // 1. 认证函数 (输入密码后调用)
+        // --- 1. 认证函数 (输入密码后调用) ---
         window.authenticate = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
+            const btn = document.getElementById('btn-login');
+            const err = document.getElementById('login-error');
+            
+            // UI 反馈：加载中
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 验证中...`;
+            err.classList.add('hidden');
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 系统已连接</span>';
-                    startListening();
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
                 }
-            });
+
+                // 监听状态，只有 user 存在才算成功
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        document.getElementById('lock-screen').classList.add('hidden');
+                        document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 系统已连接</span>';
+                        startListening();
+                    }
+                });
+
+            } catch (error) {
+                console.error("Auth Error:", error);
+                err.innerText = "连接服务器失败: " + error.message;
+                err.classList.remove('hidden');
+                
+                // 恢复按钮
+                btn.disabled = false;
+                btn.innerHTML = `<span>进入系统</span> <i class="fa-solid fa-arrow-right"></i>`;
+            }
         };
 
-        // 2. 实时监听题库
+        // --- 2. 实时监听题库 ---
         function startListening() {
             const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'question_bank');
             
-            // 按时间倒序监听
             onSnapshot(query(qRef, orderBy('timestamp', 'desc')), (snapshot) => {
                 allQuestions = [];
                 snapshot.forEach(doc => {
                     allQuestions.push({ id: doc.id, ...doc.data() });
                 });
                 renderList(allQuestions);
+            }, (error) => {
+                console.error("Listen Error:", error);
+                document.getElementById('questions-list').innerHTML = `<p class="text-red-500 text-center">无法加载数据</p>`;
             });
         }
 
-        // 3. 渲染列表
+        // --- 3. 渲染列表 ---
         function renderList(list) {
             const container = document.getElementById('questions-list');
             document.getElementById('total-count').innerText = list.length;
@@ -177,12 +210,9 @@
             });
         }
 
-        // 4. 新增题目
+        // --- 4. 增删改查 ---
         window.addQuestion = async () => {
-            if (!db) {
-                alert("数据库尚未初始化，请刷新页面。");
-                return;
-            }
+            if (!db || !auth.currentUser) return alert("请先登录系统");
 
             const input = document.getElementById('new-question-text');
             const text = input.value.trim();
@@ -194,28 +224,22 @@
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 保存中...`;
 
             try {
-                // 直接使用全局 db 变量
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'question_bank'), {
                     text: text,
                     timestamp: serverTimestamp()
                 });
-
-                // 成功反馈
                 input.value = '';
                 const msg = document.getElementById('add-msg');
                 msg.classList.remove('opacity-0');
                 setTimeout(() => msg.classList.add('opacity-0'), 2000);
-
             } catch (e) {
-                console.error(e);
-                alert("录入失败: " + e.message + "\n可能是因为未登录，请确保已输入密码进入系统。");
+                alert("录入失败: " + e.message);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
         };
 
-        // 5. 删除题目
         window.deleteQuestion = async (id) => {
             if (!confirm("确定要永久删除这道题目吗？")) return;
             try {
@@ -225,22 +249,21 @@
             }
         };
 
-        // 6. 搜索过滤
         window.filterQuestions = () => {
             const term = document.getElementById('search-input').value.toLowerCase();
             const filtered = allQuestions.filter(q => q.text.toLowerCase().includes(term));
             renderList(filtered);
         };
 
-        // 7. 密码逻辑
+        // --- 5. 密码校验 ---
         window.checkPassword = () => {
             const input = document.getElementById('password-input');
             if (input.value === '1234') {
-                document.getElementById('lock-screen').classList.add('hidden');
-                window.authenticate(); // 密码正确后，执行登录认证
+                window.authenticate(); // 触发认证流程
             } else {
                 alert('密码错误');
                 input.value = '';
+                input.focus();
             }
         };
         
