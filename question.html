@@ -9,7 +9,6 @@
     <style>
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* 自定义滚动条 */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -42,7 +41,7 @@
             <h1 class="font-bold text-lg text-slate-700">题库中心</h1>
         </div>
         <div class="text-sm text-slate-500" id="status-indicator">
-            <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 连接中...
+            <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 初始化...
         </div>
     </header>
 
@@ -92,8 +91,8 @@
             <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3" id="questions-list">
                 <!-- JS 动态填充 -->
                 <div class="text-center text-slate-400 py-10">
-                    <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
-                    <p>加载数据中...</p>
+                    <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+                    <p>等待连接数据库...</p>
                 </div>
             </div>
         </div>
@@ -106,16 +105,18 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- 关键修改：立即初始化 App 和 DB，防止 undefined 错误 ---
+        const firebaseConfig = JSON.parse(__firebase_config || '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app); // DB 现在在页面加载时立即就绪
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+
         // 全局状态
-        let db;
         let allQuestions = []; // 本地缓存用于搜索
 
-        // 1. 初始化
-        async function init() {
-            const app = initializeApp(JSON.parse(__firebase_config || '{}'));
-            const auth = getAuth(app);
-            db = getFirestore(app);
-
+        // 1. 认证函数 (输入密码后调用)
+        window.authenticate = async () => {
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 await signInWithCustomToken(auth, __initial_auth_token);
             } else {
@@ -128,11 +129,10 @@
                     startListening();
                 }
             });
-        }
+        };
 
         // 2. 实时监听题库
         function startListening() {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
             const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'question_bank');
             
             // 按时间倒序监听
@@ -178,6 +178,12 @@
 
         // 4. 新增题目
         window.addQuestion = async () => {
+            // 安全检查：防止在 DB 未连接时调用
+            if (!db) {
+                alert("数据库尚未初始化，请刷新页面。");
+                return;
+            }
+
             const input = document.getElementById('new-question-text');
             const text = input.value.trim();
             if (!text) return alert("请输入题目内容");
@@ -188,7 +194,7 @@
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 保存中...`;
 
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+                // 直接使用全局 db 变量
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'question_bank'), {
                     text: text,
                     timestamp: serverTimestamp()
@@ -201,7 +207,8 @@
                 setTimeout(() => msg.classList.add('opacity-0'), 2000);
 
             } catch (e) {
-                alert("录入失败: " + e.message);
+                console.error(e);
+                alert("录入失败: " + e.message + "\n可能是因为未登录，请确保已输入密码进入系统。");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
@@ -212,10 +219,9 @@
         window.deleteQuestion = async (id) => {
             if (!confirm("确定要永久删除这道题目吗？")) return;
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'question_bank', id));
             } catch (e) {
-                alert("删除失败");
+                alert("删除失败: " + e.message);
             }
         };
 
@@ -231,7 +237,7 @@
             const input = document.getElementById('password-input');
             if (input.value === '1234') {
                 document.getElementById('lock-screen').classList.add('hidden');
-                init();
+                window.authenticate(); // 密码正确后，执行登录认证
             } else {
                 alert('密码错误');
                 input.value = '';
