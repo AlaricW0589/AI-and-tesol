@@ -24,12 +24,14 @@
             <h2 class="text-xl font-bold mb-6 text-white"><i class="fa-solid fa-shield-halved text-blue-500 mr-2"></i>数据中心</h2>
             <input type="password" id="password-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:border-blue-500 outline-none mb-4 tracking-[0.5em] transition-all" placeholder="••••">
             <button onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-all">解锁</button>
+            <p id="init-status" class="text-xs text-slate-500 mt-4">等待解锁...</p>
         </div>
     </div>
 
     <!-- 2. 顶部导航 -->
     <header class="bg-slate-900 border-b border-slate-800 p-4 shrink-0 flex justify-between items-center z-40">
         <div class="flex items-center gap-6">
+            <a href="index.html" class="text-slate-500 hover:text-white transition-colors" title="返回首页"><i class="fa-solid fa-house"></i></a>
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-server text-blue-500 text-xl"></i>
                 <h1 class="font-bold text-lg hidden md:block">AI 行为研究</h1>
@@ -172,46 +174,150 @@
     <!-- 逻辑代码 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, orderBy, where, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ==========================================
+        // 🚨 必须在此处填入您的配置信息 (GitHub Pages 专用)
+        // ==========================================
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
+            authDomain: "ai-and-education-47d62.firebaseapp.com",
+            projectId: "ai-and-education-47d62",
+            storageBucket: "ai-and-education-47d62.firebasestorage.app",
+            messagingSenderId: "983382295554",
+            appId: "1:983382295554:web:f65048ae253b284816131b",
+            measurementId: "G-Z8S8D9YN6D"
+        };
+        // ==========================================
+
         let db;
+        let auth;
         let chartInstance = null;
         let globalData = { submissions: [], logs: [] };
-        let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        let appId = "github-pages-v1";
         
         const QUESTIONS_COUNT = 5;
 
+        // 全局挂载
+        window.checkPassword = function() {
+            if(document.getElementById('password-input').value === '1234') {
+                document.getElementById('init-status').innerText = "正在连接数据库...";
+                init();
+            } else { alert("密码错误"); }
+        };
+        document.getElementById('password-input').addEventListener('keydown', (e) => { if(e.key==='Enter') window.checkPassword(); });
+
+        window.switchTab = function(tab) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
+            document.getElementById(`nav-${tab}`).classList.add('active', 'bg-blue-600', 'text-white');
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-students').classList.add('hidden');
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+        };
+
+        window.renderStudentTable = function() {
+            const tbody = document.getElementById('student-tbody');
+            const search = document.getElementById('student-search').value.toLowerCase();
+            tbody.innerHTML = '';
+            const filtered = globalData.submissions.filter(s => s.studentName.toLowerCase().includes(search));
+            filtered.forEach((data, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800 transition-colors border-b border-slate-800";
+                const timeStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : 'N/A';
+                const duration = `${Math.floor(data.totalTimeSeconds/60)}分${data.totalTimeSeconds%60}秒`;
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-white">${data.studentName}</td>
+                    <td class="p-4 text-slate-400 text-xs">${timeStr}</td>
+                    <td class="p-4 font-mono text-blue-400 text-xs">${duration}</td>
+                    <td class="p-4 font-mono text-slate-500 text-xs">${data.ipAddress || 'Unknown'}</td>
+                    <td class="p-4 text-right flex gap-2 justify-end">
+                        <button onclick="window.openDetails('${data.userId}')" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white px-3 py-1.5 rounded text-xs transition-all border border-blue-600/30">详情</button>
+                        <button onclick="window.deleteStudent('${data.docId}', '${data.studentName}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded text-xs transition-all border border-red-600/30"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.deleteStudent = async function(docId, name) {
+            if(!confirm(`删除学生 "${name}" 的所有记录？`)) return;
+            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions_v2', docId)); } catch(e) { alert("删除失败"); }
+        };
+
+        window.openDetails = async function(userId) {
+            const subData = globalData.submissions.find(s => s.userId === userId);
+            if (!subData) return;
+            document.getElementById('modal-name').innerText = subData.studentName;
+            document.getElementById('modal-time').innerText = `提交: ${new Date(subData.timestamp.seconds*1000).toLocaleString()}`;
+            document.getElementById('modal-ip').innerText = `IP: ${subData.ipAddress || 'N/A'}`;
+            const ansContainer = document.getElementById('modal-answers');
+            ansContainer.innerHTML = '';
+            subData.details.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-800 rounded-lg p-4 border border-slate-700";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-2"><span class="text-blue-400 font-bold text-sm">Q${item.qNum}</span><span class="text-xs text-slate-500 font-mono">${Math.floor(item.durationMs/1000)}s</span></div>
+                    <p class="text-xs text-slate-400 mb-3">${item.question}</p>
+                    <div class="bg-slate-900 p-3 rounded text-sm text-slate-200 border border-slate-800 whitespace-pre-wrap">${item.answer}</div>
+                `;
+                ansContainer.appendChild(div);
+            });
+            const tlContainer = document.getElementById('modal-timeline');
+            tlContainer.innerHTML = '';
+            const userLogs = globalData.logs.filter(l => l.userId === userId).sort((a,b) => a.timestamp.seconds - b.timestamp.seconds);
+            if (userLogs.length === 0) { tlContainer.innerHTML = '<div class="text-slate-500 text-sm italic">无 AI 交互记录</div>'; } 
+            else {
+                userLogs.forEach(log => {
+                    const time = new Date(log.timestamp.seconds*1000).toLocaleTimeString();
+                    let icon = 'fa-comment', color = 'text-slate-400', title = '操作';
+                    if (log.type.includes('chat_user')) { icon = 'fa-paper-plane'; color = 'text-blue-400'; title = "提问 AI"; }
+                    else if (log.type.includes('chat_ai')) { icon = 'fa-robot'; color = 'text-purple-400'; title = "AI 回复"; }
+                    else if (log.type === 'copy') { icon = 'fa-copy'; color = 'text-orange-400'; title = "复制"; }
+                    else if (log.type === 'paste') { icon = 'fa-paste'; color = 'text-green-400'; title = "粘贴"; }
+                    const item = document.createElement('div');
+                    item.className = "mb-6 relative";
+                    item.innerHTML = `
+                        <div class="absolute -left-[33px] bg-slate-900 border border-slate-700 rounded-full w-8 h-8 flex items-center justify-center ${color}"><i class="fa-solid ${icon} text-xs"></i></div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-lg p-3 shadow-sm"><div class="flex justify-between items-center mb-1"><span class="text-xs font-bold ${color}">${title}</span><span class="text-[10px] text-slate-600 font-mono">${time}</span></div><p class="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap break-all">${log.content}</p></div>
+                    `;
+                    tlContainer.appendChild(item);
+                });
+            }
+            document.getElementById('details-modal').classList.remove('hidden');
+        };
+
         // --- 初始化 ---
         async function init() {
-            const app = initializeApp(JSON.parse(__firebase_config || '{}'));
-            const auth = getAuth(app);
-            db = getFirestore(app);
-
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-            else await signInAnonymously(auth);
-
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    document.getElementById('status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> 实时同步';
-                    startListening();
+            try {
+                if (FIREBASE_CONFIG.apiKey === "AIzaSy...") {
+                    alert("请在代码中配置 Firebase Config！");
+                    return;
                 }
-            });
+                const app = initializeApp(FIREBASE_CONFIG);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        document.getElementById('lock-screen').classList.add('hidden');
+                        document.getElementById('status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> 实时同步';
+                        startListening();
+                    }
+                });
+            } catch(e) {
+                console.error(e);
+                alert("连接数据库失败，请检查配置");
+            }
         }
 
-        // --- 数据监听 ---
         function startListening() {
-            // 1. 监听提交 (需保存DocID以便删除)
             onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'submissions_v2'), orderBy('timestamp', 'desc')), (snap) => {
                 globalData.submissions = [];
-                snap.forEach(docSnap => {
-                    globalData.submissions.push({ docId: docSnap.id, ...docSnap.data() });
-                });
+                snap.forEach(docSnap => globalData.submissions.push({ docId: docSnap.id, ...docSnap.data() }));
                 updateDashboard();
                 window.renderStudentTable();
             });
-
-            // 2. 监听所有日志
             onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'chat_logs')), (snap) => {
                 globalData.logs = [];
                 snap.forEach(docSnap => globalData.logs.push(docSnap.data()));
@@ -219,191 +325,38 @@
             });
         }
 
-        // --- Dashboard 逻辑 (自动过滤已删除学生) ---
         function updateDashboard() {
-            // 获取当前有效学生的 UserID 集合
             const activeUserIds = new Set(globalData.submissions.map(s => s.userId));
-
-            // 只统计有效用户的日志
             const activeLogs = globalData.logs.filter(l => activeUserIds.has(l.userId));
             const subCount = globalData.submissions.length;
-            
             let stats = { ai: 0, copy: 0, paste: 0 };
             activeLogs.forEach(l => {
                 if(l.type.includes('chat_user')) stats.ai++;
                 if(l.type === 'copy') stats.copy++;
                 if(l.type === 'paste') stats.paste++;
             });
-
             const totalTime = globalData.submissions.reduce((a, b) => a + (b.totalTimeSeconds || 0), 0);
             const avgTime = subCount ? Math.floor(totalTime / subCount) : 0;
-
-            // B. 更新DOM
             document.getElementById('stat-count').innerText = subCount;
             document.getElementById('stat-ai').innerText = stats.ai;
             document.getElementById('stat-copy').innerText = stats.copy + stats.paste;
             document.getElementById('stat-time').innerText = `${Math.floor(avgTime/60)}m ${avgTime%60}s`;
-
-            // C. 计算比率
             const totalQuestions = (subCount || 1) * QUESTIONS_COUNT;
             const aiRate = (stats.ai / totalQuestions) * 100;
             const pasteRate = (stats.paste / totalQuestions) * 100;
-            
             document.getElementById('rate-ai').innerText = aiRate.toFixed(1) + '%';
             document.getElementById('rate-paste').innerText = pasteRate.toFixed(1) + '%';
-
-            // D. 更新图表
             const ctx = document.getElementById('behaviorChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['AI 提问频率 (次/题)', '答案搬运频率 (次/题)'],
-                    datasets: [{
-                        label: '百分比 (%)',
-                        data: [aiRate, pasteRate],
-                        backgroundColor: ['rgba(168, 85, 247, 0.6)', 'rgba(249, 115, 22, 0.6)'],
-                        borderColor: ['rgba(168, 85, 247, 1)', 'rgba(249, 115, 22, 1)'],
-                        borderWidth: 1
-                    }]
+                    labels: ['AI 提问频率', '答案搬运频率'],
+                    datasets: [{ label: '百分比 (%)', data: [aiRate, pasteRate], backgroundColor: ['rgba(168, 85, 247, 0.6)', 'rgba(249, 115, 22, 0.6)'], borderWidth: 1 }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } } },
-                    plugins: { legend: { display: false } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } } }, plugins: { legend: { display: false } } }
             });
         }
-
-        // --- 学生列表与删除逻辑 ---
-        window.renderStudentTable = () => {
-            const tbody = document.getElementById('student-tbody');
-            const search = document.getElementById('student-search').value.toLowerCase();
-            tbody.innerHTML = '';
-
-            const filtered = globalData.submissions.filter(s => s.studentName.toLowerCase().includes(search));
-
-            filtered.forEach((data, index) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-800 transition-colors border-b border-slate-800";
-                
-                const timeStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : 'N/A';
-                const duration = `${Math.floor(data.totalTimeSeconds/60)}分${data.totalTimeSeconds%60}秒`;
-
-                tr.innerHTML = `
-                    <td class="p-4 font-bold text-white">${data.studentName}</td>
-                    <td class="p-4 text-slate-400 text-xs">${timeStr}</td>
-                    <td class="p-4 font-mono text-blue-400 text-xs">${duration}</td>
-                    <td class="p-4 font-mono text-slate-500 text-xs">${data.ipAddress || 'Unknown'}</td>
-                    <td class="p-4 text-right flex gap-2 justify-end">
-                        <button onclick="window.openDetails('${data.userId}')" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white px-3 py-1.5 rounded text-xs transition-all border border-blue-600/30">
-                            详情
-                        </button>
-                        <button onclick="window.deleteStudent('${data.docId}', '${data.studentName}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded text-xs transition-all border border-red-600/30">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        };
-
-        // 删除功能
-        window.deleteStudent = async (docId, name) => {
-            if(!confirm(`确定要删除学生 "${name}" 的所有记录吗？\n删除后数据概览将自动重新计算。`)) return;
-            try {
-                // 只需删除 Submission，updateDashboard 会自动过滤掉该用户的日志
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions_v2', docId));
-            } catch(e) {
-                alert("删除失败: " + e.message);
-            }
-        };
-
-        // --- 详情页核心逻辑 ---
-        window.openDetails = async (userId) => {
-            const subData = globalData.submissions.find(s => s.userId === userId);
-            if (!subData) return;
-
-            document.getElementById('modal-name').innerText = subData.studentName;
-            document.getElementById('modal-time').innerText = `提交: ${new Date(subData.timestamp.seconds*1000).toLocaleString()}`;
-            document.getElementById('modal-ip').innerText = `IP: ${subData.ipAddress || 'N/A'}`;
-
-            const ansContainer = document.getElementById('modal-answers');
-            ansContainer.innerHTML = '';
-            subData.details.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "bg-slate-800 rounded-lg p-4 border border-slate-700";
-                div.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-blue-400 font-bold text-sm">Q${item.qNum}</span>
-                        <span class="text-xs text-slate-500 font-mono">${Math.floor(item.durationMs/1000)}s</span>
-                    </div>
-                    <p class="text-xs text-slate-400 mb-3">${item.question}</p>
-                    <div class="bg-slate-900 p-3 rounded text-sm text-slate-200 border border-slate-800 whitespace-pre-wrap">${item.answer}</div>
-                `;
-                ansContainer.appendChild(div);
-            });
-
-            const tlContainer = document.getElementById('modal-timeline');
-            tlContainer.innerHTML = '';
-            
-            const userLogs = globalData.logs.filter(l => l.userId === userId).sort((a,b) => a.timestamp.seconds - b.timestamp.seconds);
-            
-            if (userLogs.length === 0) {
-                tlContainer.innerHTML = '<div class="text-slate-500 text-sm italic">无 AI 交互记录 (纯手写)</div>';
-            } else {
-                userLogs.forEach(log => {
-                    const time = new Date(log.timestamp.seconds*1000).toLocaleTimeString();
-                    let icon = 'fa-comment';
-                    let color = 'text-slate-400';
-                    let title = '未知操作';
-
-                    if (log.type.includes('chat_user')) { icon = 'fa-paper-plane'; color = 'text-blue-400'; title = "提问 AI"; }
-                    else if (log.type.includes('chat_ai')) { icon = 'fa-robot'; color = 'text-purple-400'; title = "AI 回复"; }
-                    else if (log.type === 'copy') { icon = 'fa-copy'; color = 'text-orange-400'; title = "复制内容"; }
-                    else if (log.type === 'paste') { icon = 'fa-paste'; color = 'text-green-400'; title = "粘贴内容"; }
-
-                    const item = document.createElement('div');
-                    item.className = "mb-6 relative";
-                    item.innerHTML = `
-                        <div class="absolute -left-[33px] bg-slate-900 border border-slate-700 rounded-full w-8 h-8 flex items-center justify-center ${color}">
-                            <i class="fa-solid ${icon} text-xs"></i>
-                        </div>
-                        <div class="bg-slate-900 border border-slate-800 rounded-lg p-3 shadow-sm hover:border-slate-700 transition-colors">
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-xs font-bold ${color}">${title}</span>
-                                <span class="text-[10px] text-slate-600 font-mono">${time}</span>
-                            </div>
-                            <p class="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap break-all">${log.content}</p>
-                        </div>
-                    `;
-                    tlContainer.appendChild(item);
-                });
-            }
-
-            document.getElementById('details-modal').classList.remove('hidden');
-        };
-
-        // --- 页面切换逻辑 ---
-        window.switchTab = (tab) => {
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
-            document.getElementById(`nav-${tab}`).classList.add('active', 'bg-blue-600', 'text-white');
-            
-            document.getElementById('view-dashboard').classList.add('hidden');
-            document.getElementById('view-students').classList.add('hidden');
-            document.getElementById(`view-${tab}`).classList.remove('hidden');
-        };
-
-        // --- 密码逻辑 ---
-        window.checkPassword = () => {
-            if(document.getElementById('password-input').value === '1234') {
-                document.getElementById('lock-screen').classList.add('hidden');
-                init();
-            } else { alert("密码错误"); }
-        };
-        document.getElementById('password-input').addEventListener('keydown', (e) => { if(e.key==='Enter') window.checkPassword(); });
-
     </script>
 </body>
 </html>
