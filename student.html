@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 辅助学习 - 学生端</title>
-    <!-- 忽略 Tailwind 的生产环境警告，它在静态单文件中完全可用 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -27,21 +26,24 @@
                 <h1 class="font-bold text-lg text-slate-700">AI 学习实验室</h1>
             </div>
             <div id="connection-status" class="text-xs text-slate-400 flex items-center gap-2">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> 系统启动中...
+                <i class="fa-solid fa-circle-notch fa-spin"></i> 初始化中...
             </div>
         </div>
     </header>
 
     <!-- 主内容区 -->
     <main class="flex-1 overflow-y-auto relative w-full max-w-4xl mx-auto p-4 flex flex-col gap-5">
-        <!-- 欢迎/说明卡片 -->
-        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 text-sm text-blue-900 shadow-sm">
-            <h3 class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> 考试规则</h3>
-            <p>1. 系统将随机抽取 5 道题目。<br>2. 允许使用下方的 AI 助手。<br>3. <b>每人仅限提交一次</b>，系统已开启 IP 及实名检测。</p>
+
+        <!-- 配置警告弹窗 -->
+        <div id="config-warning" class="hidden bg-red-50 border border-red-200 rounded-xl p-6 text-center shadow-lg mb-4">
+            <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-2"></i>
+            <h3 class="text-lg font-bold text-red-700">未配置 Firebase</h3>
+            <p class="text-sm text-red-600 mt-2">请修改代码第 128 行的配置信息。</p>
         </div>
 
         <!-- 1. 答题区域 -->
         <section id="quiz-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col shrink-0 transition-all duration-500">
+            <!-- 标题栏 -->
             <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
                 <h2 class="font-bold text-slate-700 flex items-center">
                     <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">1</span>
@@ -61,15 +63,16 @@
                     <div class="text-center space-y-2">
                         <h3 class="text-xl font-bold text-slate-800">身份验证</h3>
                         <p class="text-slate-500">请输入你的真实姓名开始答题。</p>
-                        <p id="ip-display" class="text-xs text-slate-400 font-mono">检测 IP: 初始化...</p>
+                        <p id="ip-display" class="text-xs text-slate-400 font-mono">检测 IP: 获取中...</p>
                     </div>
-                    <input type="text" id="student-name" class="w-full max-w-xs p-3 text-center border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none transition-colors text-lg" placeholder="输入姓名">
                     
-                    <button onclick="window.checkAndStart()" id="btn-start" disabled class="w-full max-w-xs bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2">
-                        <span>开始答题</span> <i class="fa-solid fa-arrow-right"></i>
+                    <input type="text" id="student-name" disabled class="w-full max-w-xs p-3 text-center border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none transition-colors text-lg disabled:bg-slate-100 disabled:cursor-not-allowed" placeholder="等待系统连接...">
+                    
+                    <button onclick="window.checkAndStart()" id="btn-start" disabled class="w-full max-w-xs bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2">
+                        <span id="btn-text">正在连接服务器...</span> <i id="btn-icon" class="fa-solid fa-circle-notch fa-spin"></i>
                     </button>
-                    <p id="error-msg" class="text-sm text-red-500 font-bold hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i> <span id="error-text"></span></p>
-                    <p id="loading-questions-msg" class="text-xs text-blue-500 hidden animate-pulse">正在等待题库数据...</p>
+                    
+                    <p id="error-msg" class="text-sm text-red-500 font-bold hidden mt-2"><i class="fa-solid fa-circle-exclamation mr-1"></i> <span id="error-text"></span></p>
                 </div>
 
                 <!-- 步骤2: 题目内容 -->
@@ -143,20 +146,17 @@
         import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚨 必须在此处填入您的配置信息 (GitHub Pages 专用)
+        // 🚨 请在此处填入您的配置
         // ==========================================
         const FIREBASE_CONFIG = {
-            // 请在 Firebase 控制台 -> 项目设置 -> 常规 -> 下方 "您的应用" 中复制配置对象
-             apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
-             authDomain: "ai-and-education-47d62.firebaseapp.com",
-             projectId: "ai-and-education-47d62",
-             storageBucket: "ai-and-education-47d62.firebasestorage.app",
-             messagingSenderId: "983382295554",
-             appId: "1:983382295554:web:f65048ae253b284816131b",
-             measurementId: "G-Z8S8D9YN6D"
+            apiKey: "AIzaSy...", 
+            authDomain: "your-app.firebaseapp.com",
+            projectId: "your-app-id",
+            storageBucket: "your-app.appspot.com",
+            messagingSenderId: "...",
+            appId: "..."
         };
-
-        const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE"; // 请填入您的 Gemini API Key
+        const GEMINI_API_KEY = "AIzaSy..."; 
         // ==========================================
 
         const QUESTIONS_TO_FETCH = 5;
@@ -171,43 +171,65 @@
             questions: [], 
             user: null,
             db: null,
-            appId: 'github-pages-v1' // 固定 ID，保证多端数据互通
+            appId: 'github-pages-v1' 
         };
 
         const get = (id) => document.getElementById(id);
 
+        // 按钮状态管理
+        function updateBtnState(enabled, text, iconClass = "fa-arrow-right") {
+            const btn = get('btn-start');
+            const input = get('student-name');
+            const icon = get('btn-icon');
+            
+            get('btn-text').innerText = text;
+            icon.className = `fa-solid ${iconClass}`;
+            
+            if (enabled) {
+                btn.disabled = false;
+                btn.classList.remove('bg-slate-800', 'hover:bg-slate-700'); 
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-700'); 
+                input.disabled = false;
+                input.placeholder = "输入姓名";
+            } else {
+                btn.disabled = true;
+                btn.classList.add('bg-slate-800');
+                btn.classList.remove('bg-blue-600');
+                if(text !== "请输入姓名") input.disabled = true;
+            }
+        }
+
         async function init() {
             detectIP();
 
-            try {
-                // 检查是否填写了配置
-                if (FIREBASE_CONFIG.apiKey === "AIzaSy...") {
-                    alert("请打开 student.html 代码，在第 127 行填入您的 Firebase 配置！");
-                    throw new Error("Configuration Missing");
-                }
+            if (FIREBASE_CONFIG.apiKey.startsWith("AIzaSy")) {
+                document.getElementById('config-warning').classList.remove('hidden');
+                updateBtnState(false, "配置缺失", "fa-triangle-exclamation");
+                return;
+            }
 
+            try {
                 const app = initializeApp(FIREBASE_CONFIG);
                 const auth = getAuth(app);
                 state.db = getFirestore(app);
 
+                get('connection-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 正在登录...';
+                
                 await signInAnonymously(auth);
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         state.user = user;
                         get('connection-status').innerHTML = '<span class="text-green-500 font-bold">● 系统就绪</span>';
+                        updateBtnState(false, "加载题库中...", "fa-circle-notch fa-spin");
                         await fetchAndRandomizeQuestions();
-                        
-                        get('student-name').addEventListener('input', (e) => {
-                            if(state.questions.length > 0) {
-                                get('btn-start').disabled = !e.target.value.trim();
-                            }
-                        });
                     }
                 });
             } catch (e) { 
                 console.error("Init Error:", e);
-                get('connection-status').innerHTML = '<span class="text-red-500">配置错误</span>'; 
+                get('connection-status').innerHTML = '<span class="text-red-500">连接错误</span>'; 
+                updateBtnState(false, "连接失败", "fa-xmark");
+                alert("连接失败: " + e.message);
             }
         }
 
@@ -244,13 +266,20 @@
                     state.questions = allQuestions.slice(0, QUESTIONS_TO_FETCH);
                 }
                 
-                const nameVal = get('student-name').value.trim();
-                if(nameVal) get('btn-start').disabled = false;
-                get('loading-questions-msg').classList.add('hidden');
+                const input = get('student-name');
+                input.disabled = false;
+                updateBtnState(false, "请输入姓名", "fa-pen");
+
+                input.addEventListener('input', (e) => {
+                    const hasText = e.target.value.trim().length > 0;
+                    updateBtnState(hasText, hasText ? "开始答题" : "请输入姓名", hasText ? "fa-arrow-right" : "fa-pen");
+                });
 
             } catch (error) { 
                 console.error("Fetch Questions Error:", error);
-                get('loading-questions-msg').innerText = "题库连接失败";
+                state.questions = ["获取失败，请尝试刷新页面。"];
+                updateBtnState(true, "开始答题 (离线模式)", "fa-triangle-exclamation");
+                get('student-name').disabled = false;
             }
         }
 
@@ -260,9 +289,7 @@
 
             if (name === "Alaric") { window.startQuiz(name); return; }
 
-            const btn = get('btn-start');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 校验中...`;
+            updateBtnState(false, "身份校验中...", "fa-spinner fa-spin");
             get('error-msg').classList.add('hidden');
 
             try {
@@ -282,8 +309,7 @@
             } catch (e) {
                 get('error-msg').classList.remove('hidden');
                 get('error-text').innerText = e.message;
-                btn.disabled = false;
-                btn.innerHTML = `<span>开始答题</span> <i class="fa-solid fa-arrow-right"></i>`;
+                updateBtnState(true, "开始答题", "fa-arrow-right");
             }
         };
 
@@ -330,41 +356,56 @@
             renderQuestion();
         };
 
+        // --- 核心修复：提交逻辑 ---
         window.submitAnswer = async () => {
             if (!confirm("确定要提交吗？提交后无法修改。")) return;
             const btn = get('btn-submit');
+            const originalText = btn.innerHTML;
+            
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 上传中...`;
 
-            if (state.questionStartTime) {
-                state.questionDurations[state.currentQuestionIndex] = (state.questionDurations[state.currentQuestionIndex] || 0) + (Date.now() - state.questionStartTime);
-            }
-            state.answers[state.currentQuestionIndex] = get('q-answer').value;
-
-            const submissionData = {
-                studentName: state.studentName,
-                userId: state.user.uid,
-                ipAddress: state.clientIP, 
-                timestamp: serverTimestamp(),
-                totalTimeSeconds: Math.floor((Date.now() - state.quizStartTime) / 1000),
-                details: state.questions.map((q, idx) => ({
-                    qNum: idx + 1,
-                    question: q,
-                    answer: state.answers[idx] || "(未作答)",
-                    durationMs: state.questionDurations[idx] || 0
-                }))
-            };
-
             try {
-                await addDoc(collection(state.db, 'artifacts', state.appId, 'public', 'data', 'submissions_v2'), submissionData);
+                if (state.questionStartTime) {
+                    state.questionDurations[state.currentQuestionIndex] = (state.questionDurations[state.currentQuestionIndex] || 0) + (Date.now() - state.questionStartTime);
+                }
+                state.answers[state.currentQuestionIndex] = get('q-answer').value;
+
+                const submissionData = {
+                    studentName: state.studentName,
+                    userId: state.user.uid,
+                    ipAddress: state.clientIP, 
+                    timestamp: serverTimestamp(),
+                    totalTimeSeconds: Math.floor((Date.now() - state.quizStartTime) / 1000),
+                    details: state.questions.map((q, idx) => ({
+                        qNum: idx + 1,
+                        question: q,
+                        answer: state.answers[idx] || "(未作答)",
+                        durationMs: state.questionDurations[idx] || 0
+                    }))
+                };
+
+                // 设置 10秒超时，防止无限等待
+                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Network too slow")), 10000));
+                
+                await Promise.race([
+                    addDoc(collection(state.db, 'artifacts', state.appId, 'public', 'data', 'submissions_v2'), submissionData),
+                    timeout
+                ]);
+
                 logAction('submission', 'Complete submission uploaded');
                 get('question-container').classList.add('hidden');
                 get('quiz-completed-msg').classList.remove('hidden');
                 get('quiz-completed-msg').classList.add('flex');
+
             } catch (e) {
-                alert("上传失败: " + e.message);
+                console.error(e);
+                let msg = "上传失败: " + e.message;
+                if (e.code === 'permission-denied') msg = "权限被拒绝：请在 Firebase 控制台设置 Firestore Rules 为 allow write: if true;";
+                
+                alert(msg);
                 btn.disabled = false;
-                btn.innerHTML = `重试 <i class="fa-solid fa-rotate-right"></i>`;
+                btn.innerHTML = `重试提交 <i class="fa-solid fa-rotate-right"></i>`;
             }
         };
 
@@ -378,9 +419,7 @@
             if (!state.studentName) {
                 appendMsg('user', text);
                 input.value = "";
-                setTimeout(() => {
-                    appendMsg('ai', "⚠️ 请先在上方输入姓名并点击“开始答题”通过验证后，方可使用 AI 助教。");
-                }, 300);
+                setTimeout(() => appendMsg('ai', "⚠️ 请先在上方输入姓名并点击“开始答题”通过验证后，方可使用 AI 助教。"), 300);
                 return;
             }
 
@@ -390,7 +429,7 @@
             logAction('chat_user', text);
 
             try {
-                if (GEMINI_API_KEY === "AIzaSy...") throw new Error("API Key Not Configured");
+                if (GEMINI_API_KEY.startsWith("AIzaSy")) throw new Error("API Key Not Configured");
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
