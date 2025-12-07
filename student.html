@@ -34,11 +34,14 @@
     <!-- 主内容区 -->
     <main class="flex-1 overflow-y-auto relative w-full max-w-4xl mx-auto p-4 flex flex-col gap-5">
 
-        <!-- 配置警告弹窗 -->
+        <!-- 配置警告弹窗 (如果检测到配置未填写会显示) -->
         <div id="config-warning" class="hidden bg-red-50 border border-red-200 rounded-xl p-6 text-center shadow-lg mb-4">
             <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-2"></i>
             <h3 class="text-lg font-bold text-red-700">未配置 Firebase</h3>
-            <p class="text-sm text-red-600 mt-2">请修改代码第 128 行的配置信息。</p>
+            <p class="text-sm text-red-600 mt-2">
+                代码中的 API Key 还是默认的占位符。<br>
+                请用代码编辑器打开本文件，修改 <b>第 128 行</b> 附近的配置。
+            </p>
         </div>
 
         <!-- 1. 答题区域 -->
@@ -146,17 +149,19 @@
         import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚨 请在此处填入您的配置
+        // 🚨 请在此处填入您的真实配置！
+        // 如果您不替换下面这些 "..."，网页是无法工作的
         // ==========================================
         const FIREBASE_CONFIG = {
-            apiKey: "AIzaSy...", 
-            authDomain: "your-app.firebaseapp.com",
-            projectId: "your-app-id",
-            storageBucket: "your-app.appspot.com",
-            messagingSenderId: "...",
-            appId: "..."
+            apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
+            authDomain: "ai-and-education-47d62.firebaseapp.com",
+            projectId: "ai-and-education-47d62",
+            storageBucket: "ai-and-education-47d62.firebasestorage.app",
+            messagingSenderId: "983382295554",
+            appId: "1:983382295554:web:f65048ae253b284816131b",
+            measurementId: "G-Z8S8D9YN6D"
         };
-        const GEMINI_API_KEY = "AIzaSy..."; 
+        const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE"; // 替换为您的 Gemini API Key
         // ==========================================
 
         const QUESTIONS_TO_FETCH = 5;
@@ -176,7 +181,6 @@
 
         const get = (id) => document.getElementById(id);
 
-        // 按钮状态管理
         function updateBtnState(enabled, text, iconClass = "fa-arrow-right") {
             const btn = get('btn-start');
             const input = get('student-name');
@@ -202,9 +206,12 @@
         async function init() {
             detectIP();
 
-            if (FIREBASE_CONFIG.apiKey.startsWith("AIzaSy")) {
+            // 1. 检查配置是否已替换
+            // 这是一个简单的检查，如果 apiKey 还是以 "AIzaSy..." 且没有被修改，就认为用户没填配置
+            if (FIREBASE_CONFIG.apiKey === "AIzaSy..." || FIREBASE_CONFIG.projectId === "your-app-id") {
                 document.getElementById('config-warning').classList.remove('hidden');
                 updateBtnState(false, "配置缺失", "fa-triangle-exclamation");
+                get('connection-status').innerHTML = '<span class="text-red-500">未配置</span>';
                 return;
             }
 
@@ -257,7 +264,13 @@
                 snapshot.forEach(doc => allQuestions.push(doc.data().text));
 
                 if (allQuestions.length === 0) {
-                    state.questions = ["示例题目：请描述人工智能的定义。", "示例题目：1+1等于几？"];
+                    state.questions = [
+                        "简述光合作用的过程 (默认题目)",
+                        "解释什么是人工智能 (默认题目)",
+                        "1 + 1 等于几？为什么？ (默认题目)",
+                        "写一首关于春天的诗 (默认题目)",
+                        "翻译 'Hello World' (默认题目)"
+                    ];
                 } else {
                     for (let i = allQuestions.length - 1; i > 0; i--) {
                         const j = Math.floor(Math.random() * (i + 1));
@@ -356,12 +369,9 @@
             renderQuestion();
         };
 
-        // --- 核心修复：提交逻辑 ---
         window.submitAnswer = async () => {
             if (!confirm("确定要提交吗？提交后无法修改。")) return;
             const btn = get('btn-submit');
-            const originalText = btn.innerHTML;
-            
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 上传中...`;
 
@@ -385,7 +395,6 @@
                     }))
                 };
 
-                // 设置 10秒超时，防止无限等待
                 const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Network too slow")), 10000));
                 
                 await Promise.race([
