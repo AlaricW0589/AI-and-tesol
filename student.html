@@ -145,12 +145,11 @@
 
         // --- 配置 ---
         const QUESTIONS_TO_FETCH = 5;
-        // 确保 API Key 正确加载，如果环境未注入，保持为空字符串
         const apiKey = typeof window.apiKey !== 'undefined' ? window.apiKey : ""; 
 
         let state = {
-            studentName: "",
-            clientIP: "check-pending", // 默认为待检测
+            studentName: "", // 重要：该字段为空表示未通过验证
+            clientIP: "check-pending",
             currentQuestionIndex: 0,
             answers: {},
             quizStartTime: null,
@@ -160,20 +159,16 @@
             user: null,
             db: null,
             appId: typeof __app_id !== 'undefined' ? __app_id : 'default-app',
-            apiKey: "" // 将在 init 中设置
+            apiKey: "" 
         };
 
         const get = (id) => document.getElementById(id);
 
-        // --- 初始化 (并发执行，防止 IP 阻塞 Firebase) ---
+        // --- 初始化 & IP检测 ---
         async function init() {
-            // 设置 API Key
-            state.apiKey = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE"; // 默认为空，等待环境注入
-            
-            // 1. 启动 IP 检测 (后台运行，设置超时)
+            state.apiKey = ""; 
             detectIP();
 
-            // 2. 启动 Firebase
             try {
                 const app = initializeApp(JSON.parse(__firebase_config || '{}'));
                 const auth = getAuth(app);
@@ -189,12 +184,9 @@
                     if (user) {
                         state.user = user;
                         get('connection-status').innerHTML = '<span class="text-green-500 font-bold">● 系统就绪</span>';
-                        
-                        // 连接成功后，尝试获取题库
                         await fetchAndRandomizeQuestions();
                         
                         get('student-name').addEventListener('input', (e) => {
-                            // 只有当题目加载完毕且输入了名字，才允许点击
                             if(state.questions.length > 0) {
                                 get('btn-start').disabled = !e.target.value.trim();
                             }
@@ -207,29 +199,17 @@
             }
         }
 
-        // --- 稳健的 IP 检测 ---
         async function detectIP() {
             const ipDisplay = get('ip-display');
-            
-            // 创建一个 2秒超时的 Fetch Promise
-            const timeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Timeout")), 2000)
-            );
-
+            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2000));
             try {
-                // 尝试获取 IP
                 const fetchIp = fetch('https://api.ipify.org?format=json').then(res => res.json());
-                
-                // 竞速：谁先完成算谁的
                 const ipData = await Promise.race([fetchIp, timeout]);
-                
                 state.clientIP = ipData.ip;
                 ipDisplay.innerText = `检测 IP: ${state.clientIP}`;
                 ipDisplay.classList.add("text-green-500");
-                
             } catch (e) {
-                // 如果超时或被拦截，回退到 unknown-ip，不阻碍流程
-                console.warn("IP Check Skipped/Failed:", e);
+                console.warn("IP Check Failed:", e);
                 state.clientIP = "unknown-ip";
                 ipDisplay.innerText = `检测 IP: 未知 (离线模式)`;
                 ipDisplay.classList.add("text-orange-400");
@@ -246,7 +226,6 @@
                 if (allQuestions.length === 0) {
                     state.questions = ["示例题目：请描述人工智能的定义。", "示例题目：1+1等于几？"];
                 } else {
-                    // 洗牌算法
                     for (let i = allQuestions.length - 1; i > 0; i--) {
                         const j = Math.floor(Math.random() * (i + 1));
                         [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
@@ -254,7 +233,6 @@
                     state.questions = allQuestions.slice(0, QUESTIONS_TO_FETCH);
                 }
                 
-                // 题目加载完成，允许开始
                 const nameVal = get('student-name').value.trim();
                 if(nameVal) get('btn-start').disabled = false;
                 get('loading-questions-msg').classList.add('hidden');
@@ -271,7 +249,6 @@
             const name = get('student-name').value.trim();
             if (!name) return;
 
-            // 特权账号
             if (name === "Alaric") {
                 window.startQuiz(name);
                 return;
@@ -284,20 +261,16 @@
 
             try {
                 const colRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'submissions_v2');
-                
-                // 1. 检查姓名
                 const nameQuery = query(colRef, where("studentName", "==", name));
                 const nameSnap = await getDocs(nameQuery);
                 if (!nameSnap.empty) throw new Error("该姓名已提交过作业，请勿重复答题。");
 
-                // 2. 检查IP (仅当 IP 有效时)
                 if (state.clientIP !== "unknown-ip" && state.clientIP !== "check-pending") {
                     const ipQuery = query(colRef, where("ipAddress", "==", state.clientIP));
                     const ipSnap = await getDocs(ipQuery);
                     if (!ipSnap.empty) throw new Error("该 IP 地址已提交过作业，每人限一次。");
                 }
 
-                // 校验通过
                 window.startQuiz(name);
 
             } catch (e) {
@@ -309,7 +282,7 @@
         };
 
         window.startQuiz = (name) => {
-            state.studentName = name;
+            state.studentName = name; // 设置姓名，通过AI验证
             state.quizStartTime = Date.now();
             get('name-input-container').classList.add('hidden');
             get('question-container').classList.remove('hidden');
@@ -396,13 +369,24 @@
             const input = get('chat-input');
             const text = input.value.trim();
             if (!text) return;
+
+            // --- 权限控制：未开始答题禁止使用 ---
+            if (!state.studentName) {
+                appendMsg('user', text);
+                input.value = "";
+                setTimeout(() => {
+                    appendMsg('ai', "⚠️ 请先在上方输入姓名并点击“开始答题”通过验证后，方可使用 AI 助教。");
+                }, 300);
+                return;
+            }
+            // ---------------------------------
+
             appendMsg('user', text);
             input.value = "";
             get('ai-loading').classList.remove('hidden');
             logAction('chat_user', text);
 
             try {
-                // 使用 fetch 请求 Gemini
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${state.apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -412,18 +396,15 @@
                     })
                 });
 
-                if (!res.ok) {
-                    throw new Error(`API Error: ${res.status}`);
-                }
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
 
                 const data = await res.json();
-                let aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "系统繁忙 (No Content)";
+                let aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "系统繁忙";
                 aiText = aiText.replace(/[*#]/g, '');
                 appendMsg('ai', aiText);
                 logAction('chat_ai', aiText);
 
             } catch (e) { 
-                console.error("AI Chat Error:", e);
                 appendMsg('ai', `系统繁忙或网络错误 (${e.message})`); 
             } finally { 
                 get('ai-loading').classList.add('hidden'); 
@@ -455,9 +436,7 @@
         get('chat-history').addEventListener('copy', () => { if (document.getSelection().toString()) logAction('copy', `Copied: "${document.getSelection().toString()}"`); });
         get('q-answer').addEventListener('paste', (e) => { logAction('paste', `Pasted Q${state.currentQuestionIndex+1}: "${(e.clipboardData || window.clipboardData).getData('Text')}"`); });
 
-        // 立即启动初始化
         init();
     </script>
 </body>
 </html>
-
