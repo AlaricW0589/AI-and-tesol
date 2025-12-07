@@ -20,18 +20,12 @@
     <!-- 1. 登录锁定遮罩 -->
     <div id="lock-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fa-solid fa-database text-2xl text-blue-600"></i>
-            </div>
             <h2 class="text-xl font-bold mb-2 text-slate-800">题库管理后台</h2>
-            <p class="text-slate-500 text-sm mb-6">请输入密码以录入或编辑题目。</p>
-            
             <input type="password" id="password-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-center focus:border-blue-500 outline-none mb-4 tracking-widest transition-all" placeholder="••••">
-            
-            <button id="btn-login" onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+            <button id="btn-login" onclick="if(window.checkPassword) window.checkPassword();" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
                 <span>进入系统</span> <i class="fa-solid fa-arrow-right"></i>
             </button>
-            <p id="login-error" class="text-red-500 text-xs mt-3 hidden"></p>
+            <p id="login-status" class="text-xs text-slate-400 mt-4">系统加载中...</p>
         </div>
     </div>
 
@@ -57,43 +51,31 @@
             <h2 class="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
                 <i class="fa-solid fa-plus-circle text-blue-500"></i> 新增题目
             </h2>
-            
             <div class="flex-1 flex flex-col gap-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">题目内容</label>
                     <textarea id="new-question-text" class="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-slate-700 leading-relaxed" placeholder="在此输入题目描述..."></textarea>
                 </div>
-                
                 <button onclick="window.addQuestion()" id="btn-add" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md">
                     <i class="fa-solid fa-save"></i> 录入题库
                 </button>
-                <p id="add-msg" class="text-center text-xs text-green-600 font-bold opacity-0 transition-opacity">
-                    <i class="fa-solid fa-check"></i> 录入成功
-                </p>
-            </div>
-            
-            <div class="mt-6 bg-blue-50 p-4 rounded-lg text-xs text-blue-700 border border-blue-100">
-                <i class="fa-solid fa-lightbulb mr-1"></i> 提示：学生端答题时，系统会自动从右侧题库列表中<b>随机抽取 5 道题</b>供学生作答。
+                <p id="add-msg" class="text-center text-xs text-green-600 font-bold opacity-0 transition-opacity"><i class="fa-solid fa-check"></i> 录入成功</p>
             </div>
         </div>
 
-        <!-- 右侧：列表与搜索区域 -->
+        <!-- 右侧：列表 -->
         <div class="w-full md:w-2/3 bg-slate-50 p-6 flex flex-col h-full overflow-hidden">
             <div class="flex justify-between items-center mb-4 shrink-0">
                 <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-list-ul text-slate-400"></i> 现有题库
                     <span id="total-count" class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">0</span>
                 </h2>
-                <!-- 搜索框 -->
                 <div class="relative w-64">
                     <input type="text" id="search-input" oninput="window.filterQuestions()" class="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none text-sm shadow-sm" placeholder="搜索题目关键词...">
                     <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
                 </div>
             </div>
-
-            <!-- 列表容器 -->
             <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3" id="questions-list">
-                <!-- JS 动态填充 -->
                 <div class="text-center text-slate-400 py-10">
                     <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
                     <p>等待连接数据库...</p>
@@ -106,123 +88,57 @@
     <!-- 逻辑代码 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- 立即初始化 App 和 DB ---
+        // ==========================================
+        // 🚨 必须在此处填入您的配置信息 (GitHub Pages 专用)
+        // ==========================================
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
+            authDomain: "ai-and-education-47d62.firebaseapp.com",
+            projectId: "ai-and-education-47d62",
+            storageBucket: "ai-and-education-47d62.firebasestorage.app",
+            messagingSenderId: "983382295554",
+            appId: "1:983382295554:web:f65048ae253b284816131b",
+            measurementId: "G-Z8S8D9YN6D"
+        };
+        // ==========================================
+
         let db;
         let auth;
-        let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        let appId = "github-pages-v1"; // 固定 ID
         let allQuestions = [];
+        let isFirebaseReady = false;
 
-        try {
-            const firebaseConfig = JSON.parse(__firebase_config || '{}');
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            console.log("Firebase initialized");
-        } catch (e) {
-            console.error("Init Error", e);
-            document.getElementById('status-indicator').innerHTML = '<span class="text-red-500">配置错误</span>';
-        }
-
-        // --- 1. 认证函数 (输入密码后调用) ---
-        window.authenticate = async () => {
+        // 全局函数挂载
+        window.checkPassword = function() {
+            const input = document.getElementById('password-input');
             const btn = document.getElementById('btn-login');
-            const err = document.getElementById('login-error');
-            
-            // UI 反馈：加载中
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 验证中...`;
-            err.classList.add('hidden');
+            const status = document.getElementById('login-status');
 
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
+            if (input.value === '1234') {
+                if (!isFirebaseReady) {
+                    status.innerHTML = "<span class='text-red-500'>数据库未就绪 (请检查配置)</span>";
+                    return;
                 }
-
-                // 监听状态，只有 user 存在才算成功
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        document.getElementById('lock-screen').classList.add('hidden');
-                        document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 系统已连接</span>';
-                        startListening();
-                    }
-                });
-
-            } catch (error) {
-                console.error("Auth Error:", error);
-                err.innerText = "连接服务器失败: " + error.message;
-                err.classList.remove('hidden');
-                
-                // 恢复按钮
-                btn.disabled = false;
-                btn.innerHTML = `<span>进入系统</span> <i class="fa-solid fa-arrow-right"></i>`;
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 验证中...`;
+                authenticateUser();
+            } else {
+                alert('密码错误');
+                input.value = '';
             }
         };
 
-        // --- 2. 实时监听题库 ---
-        function startListening() {
-            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'question_bank');
-            
-            onSnapshot(query(qRef, orderBy('timestamp', 'desc')), (snapshot) => {
-                allQuestions = [];
-                snapshot.forEach(doc => {
-                    allQuestions.push({ id: doc.id, ...doc.data() });
-                });
-                renderList(allQuestions);
-            }, (error) => {
-                console.error("Listen Error:", error);
-                document.getElementById('questions-list').innerHTML = `<p class="text-red-500 text-center">无法加载数据</p>`;
-            });
-        }
-
-        // --- 3. 渲染列表 ---
-        function renderList(list) {
-            const container = document.getElementById('questions-list');
-            document.getElementById('total-count').innerText = list.length;
-            container.innerHTML = '';
-
-            if (list.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-slate-400 py-10 border-2 border-dashed border-slate-200 rounded-xl">
-                        <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
-                        <p>暂无题目，请在左侧录入。</p>
-                    </div>`;
-                return;
-            }
-
-            list.forEach(q => {
-                const div = document.createElement('div');
-                div.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group animate-fade-in flex justify-between items-start gap-4";
-                div.innerHTML = `
-                    <div class="flex-1">
-                        <p class="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">${q.text}</p>
-                        <p class="text-[10px] text-slate-400 mt-2">ID: ${q.id.substring(0,6)}... • ${q.timestamp ? new Date(q.timestamp.seconds*1000).toLocaleString() : '刚刚'}</p>
-                    </div>
-                    <button onclick="window.deleteQuestion('${q.id}')" class="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="删除题目">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        // --- 4. 增删改查 ---
-        window.addQuestion = async () => {
-            if (!db || !auth.currentUser) return alert("请先登录系统");
-
+        window.addQuestion = async function() {
+            if (!db || !auth?.currentUser) return alert("请先登录进入系统");
             const input = document.getElementById('new-question-text');
             const text = input.value.trim();
             if (!text) return alert("请输入题目内容");
-
             const btn = document.getElementById('btn-add');
-            const originalText = btn.innerHTML;
+            
             btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 保存中...`;
-
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'question_bank'), {
                     text: text,
@@ -236,41 +152,86 @@
                 alert("录入失败: " + e.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = originalText;
             }
         };
 
-        window.deleteQuestion = async (id) => {
+        window.deleteQuestion = async function(id) {
             if (!confirm("确定要永久删除这道题目吗？")) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'question_bank', id));
-            } catch (e) {
-                alert("删除失败: " + e.message);
-            }
+            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'question_bank', id)); } 
+            catch (e) { alert("删除失败: " + e.message); }
         };
 
-        window.filterQuestions = () => {
+        window.filterQuestions = function() {
             const term = document.getElementById('search-input').value.toLowerCase();
             const filtered = allQuestions.filter(q => q.text.toLowerCase().includes(term));
             renderList(filtered);
         };
 
-        // --- 5. 密码校验 ---
-        window.checkPassword = () => {
-            const input = document.getElementById('password-input');
-            if (input.value === '1234') {
-                window.authenticate(); // 触发认证流程
-            } else {
-                alert('密码错误');
-                input.value = '';
-                input.focus();
-            }
-        };
-        
-        document.getElementById('password-input').addEventListener('keydown', (e) => {
-            if(e.key === 'Enter') window.checkPassword();
-        });
+        document.getElementById('password-input').addEventListener('keydown', (e) => { if(e.key === 'Enter') window.checkPassword(); });
 
+        // 初始化
+        async function initApp() {
+            try {
+                if (FIREBASE_CONFIG.apiKey === "AIzaSy...") {
+                    document.getElementById('login-status').innerText = "配置缺失：请在代码中填入 Firebase Config";
+                    return;
+                }
+                const app = initializeApp(FIREBASE_CONFIG);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                isFirebaseReady = true;
+                document.getElementById('login-status').innerHTML = "<span class='text-green-500'>服务已就绪</span>";
+            } catch (e) {
+                console.error("Init Failed:", e);
+                document.getElementById('login-status').innerText = "连接失败，请检查控制台";
+            }
+        }
+
+        async function authenticateUser() {
+            try {
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        document.getElementById('lock-screen').classList.add('hidden');
+                        document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 系统已连接</span>';
+                        startListening();
+                    }
+                });
+            } catch (error) {
+                alert("登录失败: " + error.message);
+                document.getElementById('btn-login').disabled = false;
+            }
+        }
+
+        function startListening() {
+            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'question_bank');
+            onSnapshot(query(qRef, orderBy('timestamp', 'desc')), (snapshot) => {
+                allQuestions = [];
+                snapshot.forEach(doc => allQuestions.push({ id: doc.id, ...doc.data() }));
+                renderList(allQuestions);
+            });
+        }
+
+        function renderList(list) {
+            const container = document.getElementById('questions-list');
+            document.getElementById('total-count').innerText = list.length;
+            container.innerHTML = '';
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-10"><p>暂无题目，请在左侧录入。</p></div>`;
+                return;
+            }
+            list.forEach(q => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start gap-4";
+                div.innerHTML = `
+                    <div class="flex-1"><p class="text-slate-800 text-sm whitespace-pre-wrap">${q.text}</p></div>
+                    <button onclick="window.deleteQuestion('${q.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        initApp();
     </script>
 </body>
 </html>
