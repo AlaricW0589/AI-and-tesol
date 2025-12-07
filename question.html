@@ -20,12 +20,20 @@
     <!-- 1. 登录锁定遮罩 -->
     <div id="lock-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fa-solid fa-database text-2xl text-blue-600"></i>
+            </div>
             <h2 class="text-xl font-bold mb-2 text-slate-800">题库管理后台</h2>
+            <p class="text-slate-500 text-sm mb-6">请输入密码以录入或编辑题目。</p>
+            
             <input type="password" id="password-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-center focus:border-blue-500 outline-none mb-4 tracking-widest transition-all" placeholder="••••">
-            <button id="btn-login" onclick="if(window.checkPassword) window.checkPassword();" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+            
+            <button id="btn-login" onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
                 <span>进入系统</span> <i class="fa-solid fa-arrow-right"></i>
             </button>
-            <p id="login-status" class="text-xs text-slate-400 mt-4">系统加载中...</p>
+            
+            <!-- 状态提示区 -->
+            <div id="login-status" class="text-xs mt-4 text-slate-400 p-2 rounded bg-slate-50 border border-slate-100 hidden"></div>
         </div>
     </div>
 
@@ -92,40 +100,59 @@
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚨 必须在此处填入您的配置信息 (GitHub Pages 专用)
+        // 🔴 必须在此处填入您的配置信息 (否则无法运行)
+        // 1. 去 Firebase Console -> 项目设置 -> 复制 sdk config
+        // 2. 去 Authentication -> Sign-in method -> 开启 "匿名 (Anonymous)"
         // ==========================================
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        const firebaseConfig = {
-          apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
-          authDomain: "ai-and-education-47d62.firebaseapp.com",
-          projectId: "ai-and-education-47d62",
-          storageBucket: "ai-and-education-47d62.firebasestorage.app",
-          messagingSenderId: "983382295554",
-          appId: "1:983382295554:web:f65048ae253b284816131b",
-          measurementId: "G-Z8S8D9YN6D"
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
+            authDomain: "ai-and-education-47d62.firebaseapp.com",
+            projectId: "ai-and-education-47d62",
+            storageBucket: "ai-and-education-47d62.firebasestorage.app",
+            messagingSenderId: "983382295554",
+            appId: "1:983382295554:web:f65048ae253b284816131b",
+            measurementId: "G-Z8S8D9YN6D"
         };
         // ==========================================
 
         let db;
         let auth;
-        let appId = "github-pages-v1"; // 固定 ID
+        let appId = "github-pages-v1"; 
         let allQuestions = [];
-        let isFirebaseReady = false;
+        let isConfigured = false;
 
-        // 全局函数挂载
-        window.checkPassword = function() {
+        // --- 全局函数 ---
+        
+        window.checkPassword = async function() {
             const input = document.getElementById('password-input');
             const btn = document.getElementById('btn-login');
             const status = document.getElementById('login-status');
 
             if (input.value === '1234') {
-                if (!isFirebaseReady) {
-                    status.innerHTML = "<span class='text-red-500'>数据库未就绪 (请检查配置)</span>";
+                // 1. 检查配置是否已替换
+                if (!isConfigured) {
+                    status.classList.remove('hidden');
+                    status.innerHTML = "<span class='text-red-600 font-bold'>错误：未配置 Firebase!</span><br>请用代码编辑器打开 question.html，在第 127 行填入您的配置信息。";
                     return;
                 }
+
+                // 2. 开始登录
                 btn.disabled = true;
-                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 验证中...`;
-                authenticateUser();
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 连接云端...`;
+                status.classList.remove('hidden');
+                status.innerHTML = "正在验证身份...";
+
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Login Failed:", error);
+                    let msg = "登录失败";
+                    if (error.code === 'auth/configuration-not-found') msg = "配置错误：请检查 apiKey 是否正确";
+                    if (error.code === 'auth/operation-not-allowed') msg = "权限错误：请在 Firebase 控制台开启【匿名登录】";
+                    status.innerHTML = `<span class='text-red-500'>${msg}</span><br><span class='text-[10px]'>${error.message}</span>`;
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>重试</span> <i class="fa-solid fa-rotate-right"></i>`;
+                }
             } else {
                 alert('密码错误');
                 input.value = '';
@@ -170,37 +197,35 @@
 
         document.getElementById('password-input').addEventListener('keydown', (e) => { if(e.key === 'Enter') window.checkPassword(); });
 
-        // 初始化
-        async function initApp() {
+        // --- 初始化 ---
+        function initApp() {
+            // 检查用户是否替换了 placeholder
+            if (FIREBASE_CONFIG.apiKey.startsWith("AIzaSy") && FIREBASE_CONFIG.apiKey.endsWith("...")) {
+                console.warn("Firebase Config is missing!");
+                document.getElementById('status-indicator').innerHTML = '<span class="text-orange-500">未配置</span>';
+                return; 
+            }
+
             try {
-                if (FIREBASE_CONFIG.apiKey === "AIzaSy...") {
-                    document.getElementById('login-status').innerText = "配置缺失：请在代码中填入 Firebase Config";
-                    return;
-                }
                 const app = initializeApp(FIREBASE_CONFIG);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                isFirebaseReady = true;
-                document.getElementById('login-status').innerHTML = "<span class='text-green-500'>服务已就绪</span>";
-            } catch (e) {
-                console.error("Init Failed:", e);
-                document.getElementById('login-status').innerText = "连接失败，请检查控制台";
-            }
-        }
+                isConfigured = true;
+                
+                document.getElementById('status-indicator').innerHTML = '<span class="text-blue-500">等待登录...</span>';
 
-        async function authenticateUser() {
-            try {
-                await signInAnonymously(auth);
+                // 监听状态 (如果之前登录过，会自动连上)
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         document.getElementById('lock-screen').classList.add('hidden');
-                        document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 系统已连接</span>';
+                        document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 在线</span>';
                         startListening();
                     }
                 });
-            } catch (error) {
-                alert("登录失败: " + error.message);
-                document.getElementById('btn-login').disabled = false;
+
+            } catch (e) {
+                console.error("Init Error", e);
+                document.getElementById('status-indicator').innerHTML = '<span class="text-red-500">初始化失败</span>';
             }
         }
 
@@ -210,6 +235,8 @@
                 allQuestions = [];
                 snapshot.forEach(doc => allQuestions.push({ id: doc.id, ...doc.data() }));
                 renderList(allQuestions);
+            }, (err) => {
+                document.getElementById('questions-list').innerHTML = `<div class="text-red-500 text-center mt-10">数据加载被拒绝<br><span class="text-xs">请检查 Firestore 规则是否为 public read</span></div>`;
             });
         }
 
@@ -236,4 +263,3 @@
     </script>
 </body>
 </html>
-
