@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 辅助学习 - 学生端</title>
+    <!-- 忽略 Tailwind 的生产环境警告，它在静态单文件中完全可用 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -33,7 +34,6 @@
 
     <!-- 主内容区 -->
     <main class="flex-1 overflow-y-auto relative w-full max-w-4xl mx-auto p-4 flex flex-col gap-5">
-
         <!-- 欢迎/说明卡片 -->
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 text-sm text-blue-900 shadow-sm">
             <h3 class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> 考试规则</h3>
@@ -42,7 +42,6 @@
 
         <!-- 1. 答题区域 -->
         <section id="quiz-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col shrink-0 transition-all duration-500">
-            <!-- 标题栏 -->
             <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
                 <h2 class="font-bold text-slate-700 flex items-center">
                     <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">1</span>
@@ -140,15 +139,29 @@
     <!-- 逻辑代码 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- 配置 ---
-        const QUESTIONS_TO_FETCH = 5;
-        const apiKey = typeof window.apiKey !== 'undefined' ? window.apiKey : ""; 
+        // ==========================================
+        // 🚨 必须在此处填入您的配置信息 (GitHub Pages 专用)
+        // ==========================================
+        const FIREBASE_CONFIG = {
+            // 请在 Firebase 控制台 -> 项目设置 -> 常规 -> 下方 "您的应用" 中复制配置对象
+           apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
+           authDomain: "ai-and-education-47d62.firebaseapp.com",
+           projectId: "ai-and-education-47d62",
+           storageBucket: "ai-and-education-47d62.firebasestorage.app",
+           messagingSenderId: "983382295554",
+           appId: "1:983382295554:web:f65048ae253b284816131b",
+           measurementId: "G-Z8S8D9YN6D"
+        };
 
+        const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE"; // 请填入您的 Gemini API Key
+        // ==========================================
+
+        const QUESTIONS_TO_FETCH = 5;
         let state = {
-            studentName: "", // 重要：该字段为空表示未通过验证
+            studentName: "", 
             clientIP: "check-pending",
             currentQuestionIndex: 0,
             answers: {},
@@ -158,27 +171,26 @@
             questions: [], 
             user: null,
             db: null,
-            appId: typeof __app_id !== 'undefined' ? __app_id : 'default-app',
-            apiKey: "" 
+            appId: 'github-pages-v1' // 固定 ID，保证多端数据互通
         };
 
         const get = (id) => document.getElementById(id);
 
-        // --- 初始化 & IP检测 ---
         async function init() {
-            state.apiKey = ""; 
             detectIP();
 
             try {
-                const app = initializeApp(JSON.parse(__firebase_config || '{}'));
+                // 检查是否填写了配置
+                if (FIREBASE_CONFIG.apiKey === "AIzaSy...") {
+                    alert("请打开 student.html 代码，在第 127 行填入您的 Firebase 配置！");
+                    throw new Error("Configuration Missing");
+                }
+
+                const app = initializeApp(FIREBASE_CONFIG);
                 const auth = getAuth(app);
                 state.db = getFirestore(app);
 
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                await signInAnonymously(auth);
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
@@ -194,8 +206,8 @@
                     }
                 });
             } catch (e) { 
-                console.error("Firebase Init Error:", e);
-                get('connection-status').innerHTML = '<span class="text-red-500">连接错误</span>'; 
+                console.error("Init Error:", e);
+                get('connection-status').innerHTML = '<span class="text-red-500">配置错误</span>'; 
             }
         }
 
@@ -209,7 +221,6 @@
                 ipDisplay.innerText = `检测 IP: ${state.clientIP}`;
                 ipDisplay.classList.add("text-green-500");
             } catch (e) {
-                console.warn("IP Check Failed:", e);
                 state.clientIP = "unknown-ip";
                 ipDisplay.innerText = `检测 IP: 未知 (离线模式)`;
                 ipDisplay.classList.add("text-orange-400");
@@ -239,20 +250,15 @@
 
             } catch (error) { 
                 console.error("Fetch Questions Error:", error);
-                state.questions = ["获取题目失败，请刷新重试。"];
                 get('loading-questions-msg').innerText = "题库连接失败";
             }
         }
 
-        // --- 核心：资格检查与开始 ---
         window.checkAndStart = async () => {
             const name = get('student-name').value.trim();
             if (!name) return;
 
-            if (name === "Alaric") {
-                window.startQuiz(name);
-                return;
-            }
+            if (name === "Alaric") { window.startQuiz(name); return; }
 
             const btn = get('btn-start');
             btn.disabled = true;
@@ -282,7 +288,7 @@
         };
 
         window.startQuiz = (name) => {
-            state.studentName = name; // 设置姓名，通过AI验证
+            state.studentName = name;
             state.quizStartTime = Date.now();
             get('name-input-container').classList.add('hidden');
             get('question-container').classList.remove('hidden');
@@ -362,7 +368,6 @@
             }
         };
 
-        // --- Chat Logic ---
         window.handleChatKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendChat(); } };
         
         window.sendChat = async () => {
@@ -370,7 +375,6 @@
             const text = input.value.trim();
             if (!text) return;
 
-            // --- 权限控制：未开始答题禁止使用 ---
             if (!state.studentName) {
                 appendMsg('user', text);
                 input.value = "";
@@ -379,7 +383,6 @@
                 }, 300);
                 return;
             }
-            // ---------------------------------
 
             appendMsg('user', text);
             input.value = "";
@@ -387,7 +390,9 @@
             logAction('chat_user', text);
 
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${state.apiKey}`, {
+                if (GEMINI_API_KEY === "AIzaSy...") throw new Error("API Key Not Configured");
+
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -405,7 +410,7 @@
                 logAction('chat_ai', aiText);
 
             } catch (e) { 
-                appendMsg('ai', `系统繁忙或网络错误 (${e.message})`); 
+                appendMsg('ai', `系统繁忙 (${e.message})`); 
             } finally { 
                 get('ai-loading').classList.add('hidden'); 
             }
