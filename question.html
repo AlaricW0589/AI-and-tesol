@@ -3,360 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>研究后台 - 数据中心</title>
+    <title>研究后台 - 题库管理系统</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .custom-scroll::-webkit-scrollbar { width: 8px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #1e293b; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        .chart-wrapper { position: relative; height: 350px; width: 100%; }
-        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
-        .nav-btn.active { background-color: #2563eb; color: white; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
 
-    <!-- 1. 锁屏 -->
-    <div id="lock-screen" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-4">
-        <div class="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-            <h2 class="text-xl font-bold mb-6 text-white"><i class="fa-solid fa-shield-halved text-blue-500 mr-2"></i>数据中心</h2>
-            <input type="password" id="password-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:border-blue-500 outline-none mb-4 tracking-[0.5em] transition-all" placeholder="••••">
-            <button onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-all">解锁</button>
-            <p id="init-status" class="text-xs text-slate-500 mt-4">等待解锁...</p>
+    <!-- 1. 登录锁定遮罩 -->
+    <div id="lock-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fa-solid fa-database text-2xl text-blue-600"></i>
+            </div>
+            <h2 class="text-xl font-bold mb-2 text-slate-800">题库管理后台</h2>
+            <p class="text-slate-500 text-sm mb-6">请输入密码以录入或编辑题目。</p>
+            
+            <input type="password" id="password-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-center focus:border-blue-500 outline-none mb-4 tracking-widest transition-all" placeholder="••••">
+            
+            <button id="btn-login" onclick="window.checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                <span>进入系统</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <p id="login-status" class="text-xs text-slate-400 mt-4">系统加载中...</p>
         </div>
     </div>
 
     <!-- 2. 顶部导航 -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 shrink-0 flex justify-between items-center z-40">
-        <div class="flex items-center gap-6">
-            <a href="index.html" class="text-slate-500 hover:text-white transition-colors" title="返回首页"><i class="fa-solid fa-house"></i></a>
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-server text-blue-500 text-xl"></i>
-                <h1 class="font-bold text-lg hidden md:block">AI 行为研究</h1>
+    <header class="bg-white border-b border-slate-200 p-4 shrink-0 flex justify-between items-center shadow-sm z-10">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-slate-400 hover:text-blue-600 transition-colors mr-2" title="返回首页"><i class="fa-solid fa-house"></i></a>
+            <div class="bg-blue-600 text-white p-2 rounded-lg">
+                <i class="fa-solid fa-layer-group"></i>
             </div>
-            <!-- 页面切换导航 -->
-            <div class="flex bg-slate-800 rounded-lg p-1">
-                <button onclick="window.switchTab('dashboard')" id="nav-dashboard" class="nav-btn active px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-chart-pie mr-1"></i> 数据总览
-                </button>
-                <button onclick="window.switchTab('students')" id="nav-students" class="nav-btn px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-users mr-1"></i> 学生详情列表
-                </button>
-            </div>
+            <h1 class="font-bold text-lg text-slate-700">题库中心</h1>
         </div>
-        <div class="text-xs text-slate-500 flex items-center gap-2" id="status-indicator">
-            <span class="w-2 h-2 rounded-full bg-red-500"></span> 离线
+        <div class="text-sm text-slate-500" id="status-indicator">
+            <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 初始化...
         </div>
     </header>
 
     <!-- 3. 主内容区 -->
-    <main class="flex-1 overflow-hidden relative">
+    <main class="flex-1 overflow-hidden flex flex-col md:flex-row">
         
-        <!-- 视图 A: 数据总览 (Dashboard) -->
-        <div id="view-dashboard" class="absolute inset-0 p-6 overflow-y-auto custom-scroll grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- 核心指标 -->
-            <div class="lg:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="glass-panel p-4 rounded-xl">
-                    <div class="text-slate-400 text-xs font-bold uppercase">提交人数</div>
-                    <div class="text-3xl font-mono font-bold text-white mt-1" id="stat-count">0</div>
+        <!-- 左侧：录入区域 -->
+        <div class="w-full md:w-1/3 bg-white p-6 border-r border-slate-200 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+            <h2 class="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
+                <i class="fa-solid fa-plus-circle text-blue-500"></i> 新增题目
+            </h2>
+            <div class="flex-1 flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">题目内容</label>
+                    <textarea id="new-question-text" class="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-slate-700 leading-relaxed" placeholder="在此输入题目描述..."></textarea>
                 </div>
-                <div class="glass-panel p-4 rounded-xl">
-                    <div class="text-slate-400 text-xs font-bold uppercase">AI 交互总量</div>
-                    <div class="text-3xl font-mono font-bold text-purple-400 mt-1" id="stat-ai">0</div>
-                </div>
-                <div class="glass-panel p-4 rounded-xl">
-                    <div class="text-slate-400 text-xs font-bold uppercase">复制/粘贴次数</div>
-                    <div class="text-3xl font-mono font-bold text-orange-400 mt-1" id="stat-copy">0</div>
-                </div>
-                <div class="glass-panel p-4 rounded-xl">
-                    <div class="text-slate-400 text-xs font-bold uppercase">平均答题时长</div>
-                    <div class="text-3xl font-mono font-bold text-blue-400 mt-1" id="stat-time">0m</div>
-                </div>
-            </div>
-
-            <!-- 图表 -->
-            <div class="lg:col-span-8 glass-panel p-6 rounded-xl flex flex-col">
-                <h3 class="font-bold text-white mb-4"><i class="fa-solid fa-chart-column text-blue-500 mr-2"></i>全班行为模式分布</h3>
-                <div class="chart-wrapper flex-1">
-                    <canvas id="behaviorChart"></canvas>
-                </div>
-            </div>
-
-            <!-- 简报 -->
-            <div class="lg:col-span-4 glass-panel p-6 rounded-xl">
-                <h3 class="font-bold text-white mb-4"><i class="fa-solid fa-lightbulb text-yellow-500 mr-2"></i>分析简报</h3>
-                <div class="space-y-4 text-sm text-slate-300">
-                    <div class="flex justify-between border-b border-slate-700 pb-2">
-                        <span>AI 依赖度 (提问/题数)</span>
-                        <span class="font-bold text-purple-400" id="rate-ai">0%</span>
-                    </div>
-                    <div class="flex justify-between border-b border-slate-700 pb-2">
-                        <span>答案搬运率 (粘贴/题数)</span>
-                        <span class="font-bold text-orange-400" id="rate-paste">0%</span>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-4 leading-relaxed">
-                        注意：<br>
-                        • 数据仅统计当前<b>在册学生</b>。<br>
-                        • 删除学生后，其产生的所有数据指标将自动从总览中扣除。<br>
-                    </p>
-                </div>
+                <button onclick="window.addQuestion()" id="btn-add" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md">
+                    <i class="fa-solid fa-save"></i> 录入题库
+                </button>
+                <p id="add-msg" class="text-center text-xs text-green-600 font-bold opacity-0 transition-opacity"><i class="fa-solid fa-check"></i> 录入成功</p>
             </div>
         </div>
 
-        <!-- 视图 B: 学生列表 (Student List) -->
-        <div id="view-students" class="absolute inset-0 p-6 overflow-hidden hidden flex flex-col">
-            <div class="glass-panel rounded-xl flex flex-col h-full overflow-hidden">
-                <div class="p-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-                    <h3 class="font-bold text-white">已提交学生名单</h3>
-                    <input type="text" id="student-search" oninput="window.renderStudentTable()" placeholder="搜索姓名..." class="bg-slate-900 border border-slate-700 rounded px-3 py-1 text-sm text-white focus:border-blue-500 outline-none">
+        <!-- 右侧：列表 -->
+        <div class="w-full md:w-2/3 bg-slate-50 p-6 flex flex-col h-full overflow-hidden">
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-list-ul text-slate-400"></i> 现有题库
+                    <span id="total-count" class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">0</span>
+                </h2>
+                <div class="relative w-64">
+                    <input type="text" id="search-input" oninput="window.filterQuestions()" class="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none text-sm shadow-sm" placeholder="搜索题目关键词...">
+                    <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
                 </div>
-                <div class="flex-1 overflow-auto custom-scroll">
-                    <table class="w-full text-left text-sm text-slate-300">
-                        <thead class="text-xs text-slate-500 uppercase bg-slate-900 sticky top-0 z-10">
-                            <tr>
-                                <th class="p-4">姓名</th>
-                                <th class="p-4">提交时间</th>
-                                <th class="p-4">答题时长</th>
-                                <th class="p-4">来源 IP</th>
-                                <th class="p-4 text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="student-tbody" class="divide-y divide-slate-700/50">
-                            <!-- JS 填充 -->
-                        </tbody>
-                    </table>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3" id="questions-list">
+                <div class="text-center text-slate-400 py-10">
+                    <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+                    <p>等待连接数据库...</p>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- 学生详情模态框 -->
-    <div id="details-modal" class="hidden fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-slate-900 border border-slate-700 text-slate-200 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden animate-fade-in">
-            <!-- 头部 -->
-            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-                <div>
-                    <h3 class="font-bold text-xl text-white" id="modal-name">学生姓名</h3>
-                    <div class="flex gap-4 text-xs text-slate-500 mt-1">
-                        <span id="modal-time">提交时间: --</span>
-                        <span id="modal-ip">IP: --</span>
-                    </div>
-                </div>
-                <button onclick="document.getElementById('details-modal').classList.add('hidden')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg transition-colors">关闭</button>
-            </div>
-            
-            <!-- 内容：左右分栏 -->
-            <div class="flex-1 overflow-hidden flex flex-col lg:flex-row">
-                <!-- 左侧：答卷内容 -->
-                <div class="w-full lg:w-1/2 p-6 overflow-y-auto border-r border-slate-800 custom-scroll bg-slate-900">
-                    <h4 class="font-bold text-blue-400 mb-4 sticky top-0 bg-slate-900 py-2 border-b border-slate-800 z-10">
-                        <i class="fa-solid fa-file-pen mr-2"></i>答卷内容
-                    </h4>
-                    <div id="modal-answers" class="space-y-6"></div>
-                </div>
-                
-                <!-- 右侧：交互复盘 -->
-                <div class="w-full lg:w-1/2 p-6 overflow-y-auto custom-scroll bg-slate-950">
-                    <h4 class="font-bold text-purple-400 mb-4 sticky top-0 bg-slate-950 py-2 border-b border-slate-800 z-10">
-                        <i class="fa-solid fa-clock-rotate-left mr-2"></i>学习路径复盘 (AI 交互流)
-                    </h4>
-                    <div id="modal-timeline" class="space-y-0 relative border-l-2 border-slate-800 ml-3 pl-6 pb-10">
-                        <!-- JS 填充时间轴 -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- 逻辑代码 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, where, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚨 必须在此处填入您的配置信息 (GitHub Pages 专用)
+        // 配置信息 (已注入)
         // ==========================================
         const FIREBASE_CONFIG = {
-             apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
-             authDomain: "ai-and-education-47d62.firebaseapp.com",
-             projectId: "ai-and-education-47d62",
-             storageBucket: "ai-and-education-47d62.firebasestorage.app",
-             messagingSenderId: "983382295554",
-             appId: "1:983382295554:web:f65048ae253b284816131b",
-             measurementId: "G-Z8S8D9YN6D"
+            apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
+            authDomain: "ai-and-education-47d62.firebaseapp.com",
+            projectId: "ai-and-education-47d62",
+            storageBucket: "ai-and-education-47d62.firebasestorage.app",
+            messagingSenderId: "983382295554",
+            appId: "1:983382295554:web:f65048ae253b284816131b",
+            measurementId: "G-Z8S8D9YN6D"
         };
         // ==========================================
 
         let db;
         let auth;
-        let chartInstance = null;
-        let globalData = { submissions: [], logs: [] };
-        let appId = "github-pages-v1";
+        let appId = "github-pages-v1"; 
+        let allQuestions = [];
+        let isConfigured = false;
+
+        // --- 全局函数 ---
         
-        const QUESTIONS_COUNT = 5;
+        window.checkPassword = async function() {
+            const input = document.getElementById('password-input');
+            const btn = document.getElementById('btn-login');
+            const status = document.getElementById('login-status');
 
-        // 全局挂载
-        window.checkPassword = function() {
-            if(document.getElementById('password-input').value === '1234') {
-                document.getElementById('init-status').innerText = "正在连接数据库...";
-                init();
-            } else { alert("密码错误"); }
-        };
-        document.getElementById('password-input').addEventListener('keydown', (e) => { if(e.key==='Enter') window.checkPassword(); });
-
-        window.switchTab = function(tab) {
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
-            document.getElementById(`nav-${tab}`).classList.add('active', 'bg-blue-600', 'text-white');
-            document.getElementById('view-dashboard').classList.add('hidden');
-            document.getElementById('view-students').classList.add('hidden');
-            document.getElementById(`view-${tab}`).classList.remove('hidden');
-        };
-
-        window.renderStudentTable = function() {
-            const tbody = document.getElementById('student-tbody');
-            const search = document.getElementById('student-search').value.toLowerCase();
-            tbody.innerHTML = '';
-            const filtered = globalData.submissions.filter(s => s.studentName.toLowerCase().includes(search));
-            filtered.forEach((data, index) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-800 transition-colors border-b border-slate-800";
-                const timeStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : 'N/A';
-                const duration = `${Math.floor(data.totalTimeSeconds/60)}分${data.totalTimeSeconds%60}秒`;
-                tr.innerHTML = `
-                    <td class="p-4 font-bold text-white">${data.studentName}</td>
-                    <td class="p-4 text-slate-400 text-xs">${timeStr}</td>
-                    <td class="p-4 font-mono text-blue-400 text-xs">${duration}</td>
-                    <td class="p-4 font-mono text-slate-500 text-xs">${data.ipAddress || 'Unknown'}</td>
-                    <td class="p-4 text-right flex gap-2 justify-end">
-                        <button onclick="window.openDetails('${data.userId}')" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white px-3 py-1.5 rounded text-xs transition-all border border-blue-600/30">详情</button>
-                        <button onclick="window.deleteStudent('${data.docId}', '${data.studentName}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded text-xs transition-all border border-red-600/30"><i class="fa-solid fa-trash-can"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        };
-
-        window.deleteStudent = async function(docId, name) {
-            if(!confirm(`删除学生 "${name}" 的所有记录？`)) return;
-            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions_v2', docId)); } catch(e) { alert("删除失败"); }
-        };
-
-        window.openDetails = async function(userId) {
-            const subData = globalData.submissions.find(s => s.userId === userId);
-            if (!subData) return;
-            document.getElementById('modal-name').innerText = subData.studentName;
-            document.getElementById('modal-time').innerText = `提交: ${new Date(subData.timestamp.seconds*1000).toLocaleString()}`;
-            document.getElementById('modal-ip').innerText = `IP: ${subData.ipAddress || 'N/A'}`;
-            const ansContainer = document.getElementById('modal-answers');
-            ansContainer.innerHTML = '';
-            subData.details.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "bg-slate-800 rounded-lg p-4 border border-slate-700";
-                div.innerHTML = `
-                    <div class="flex justify-between items-center mb-2"><span class="text-blue-400 font-bold text-sm">Q${item.qNum}</span><span class="text-xs text-slate-500 font-mono">${Math.floor(item.durationMs/1000)}s</span></div>
-                    <p class="text-xs text-slate-400 mb-3">${item.question}</p>
-                    <div class="bg-slate-900 p-3 rounded text-sm text-slate-200 border border-slate-800 whitespace-pre-wrap">${item.answer}</div>
-                `;
-                ansContainer.appendChild(div);
-            });
-            const tlContainer = document.getElementById('modal-timeline');
-            tlContainer.innerHTML = '';
-            const userLogs = globalData.logs.filter(l => l.userId === userId).sort((a,b) => a.timestamp.seconds - b.timestamp.seconds);
-            if (userLogs.length === 0) { tlContainer.innerHTML = '<div class="text-slate-500 text-sm italic">无 AI 交互记录</div>'; } 
-            else {
-                userLogs.forEach(log => {
-                    const time = new Date(log.timestamp.seconds*1000).toLocaleTimeString();
-                    let icon = 'fa-comment', color = 'text-slate-400', title = '操作';
-                    if (log.type.includes('chat_user')) { icon = 'fa-paper-plane'; color = 'text-blue-400'; title = "提问 AI"; }
-                    else if (log.type.includes('chat_ai')) { icon = 'fa-robot'; color = 'text-purple-400'; title = "AI 回复"; }
-                    else if (log.type === 'copy') { icon = 'fa-copy'; color = 'text-orange-400'; title = "复制"; }
-                    else if (log.type === 'paste') { icon = 'fa-paste'; color = 'text-green-400'; title = "粘贴"; }
-                    const item = document.createElement('div');
-                    item.className = "mb-6 relative";
-                    item.innerHTML = `
-                        <div class="absolute -left-[33px] bg-slate-900 border border-slate-700 rounded-full w-8 h-8 flex items-center justify-center ${color}"><i class="fa-solid ${icon} text-xs"></i></div>
-                        <div class="bg-slate-900 border border-slate-800 rounded-lg p-3 shadow-sm"><div class="flex justify-between items-center mb-1"><span class="text-xs font-bold ${color}">${title}</span><span class="text-[10px] text-slate-600 font-mono">${time}</span></div><p class="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap break-all">${log.content}</p></div>
-                    `;
-                    tlContainer.appendChild(item);
-                });
-            }
-            document.getElementById('details-modal').classList.remove('hidden');
-        };
-
-        // --- 初始化 ---
-        async function init() {
-            try {
-                if (FIREBASE_CONFIG.apiKey === "AIzaSy...") {
-                    alert("请在代码中配置 Firebase Config！");
+            if (input.value === '1234') {
+                if (!isConfigured) {
+                    status.innerHTML = "<span class='text-red-500'>数据库未连接，请刷新</span>";
                     return;
                 }
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 连接云端...`;
+                status.innerHTML = "正在验证身份...";
+
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    status.innerHTML = `<span class='text-red-500'>登录失败: ${error.message}</span>`;
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>重试</span> <i class="fa-solid fa-rotate-right"></i>`;
+                }
+            } else {
+                alert('密码错误');
+                input.value = '';
+            }
+        };
+
+        window.addQuestion = async function() {
+            if (!db || !auth?.currentUser) return alert("请先登录进入系统");
+            const input = document.getElementById('new-question-text');
+            const text = input.value.trim();
+            if (!text) return alert("请输入题目内容");
+            const btn = document.getElementById('btn-add');
+            
+            btn.disabled = true;
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'question_bank'), {
+                    text: text,
+                    timestamp: serverTimestamp()
+                });
+                input.value = '';
+                const msg = document.getElementById('add-msg');
+                msg.classList.remove('opacity-0');
+                setTimeout(() => msg.classList.add('opacity-0'), 2000);
+            } catch (e) {
+                alert("录入失败: " + e.message);
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        window.deleteQuestion = async function(id) {
+            if (!confirm("确定要永久删除这道题目吗？")) return;
+            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'question_bank', id)); } 
+            catch (e) { alert("删除失败: " + e.message); }
+        };
+
+        window.filterQuestions = function() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const filtered = allQuestions.filter(q => q.text.toLowerCase().includes(term));
+            renderList(filtered);
+        };
+
+        document.getElementById('password-input').addEventListener('keydown', (e) => { if(e.key === 'Enter') window.checkPassword(); });
+
+        // --- 初始化 ---
+        function initApp() {
+            try {
                 const app = initializeApp(FIREBASE_CONFIG);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                await signInAnonymously(auth);
+                isConfigured = true;
+                
+                document.getElementById('status-indicator').innerHTML = '<span class="text-blue-500">等待登录...</span>';
+                document.getElementById('login-status').innerText = "系统就绪，请输入密码";
+
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         document.getElementById('lock-screen').classList.add('hidden');
-                        document.getElementById('status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> 实时同步';
+                        document.getElementById('status-indicator').innerHTML = '<span class="text-green-600 font-bold">● 在线</span>';
                         startListening();
                     }
                 });
-            } catch(e) {
-                console.error(e);
-                alert("连接数据库失败，请检查配置");
+
+            } catch (e) {
+                console.error("Init Error", e);
+                document.getElementById('status-indicator').innerHTML = '<span class="text-red-500">初始化失败</span>';
             }
         }
 
         function startListening() {
-            onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'submissions_v2'), orderBy('timestamp', 'desc')), (snap) => {
-                globalData.submissions = [];
-                snap.forEach(docSnap => globalData.submissions.push({ docId: docSnap.id, ...docSnap.data() }));
-                updateDashboard();
-                window.renderStudentTable();
-            });
-            onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'chat_logs')), (snap) => {
-                globalData.logs = [];
-                snap.forEach(docSnap => globalData.logs.push(docSnap.data()));
-                updateDashboard();
+            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'question_bank');
+            onSnapshot(query(qRef, orderBy('timestamp', 'desc')), (snapshot) => {
+                allQuestions = [];
+                snapshot.forEach(doc => allQuestions.push({ id: doc.id, ...doc.data() }));
+                renderList(allQuestions);
             });
         }
 
-        function updateDashboard() {
-            const activeUserIds = new Set(globalData.submissions.map(s => s.userId));
-            const activeLogs = globalData.logs.filter(l => activeUserIds.has(l.userId));
-            const subCount = globalData.submissions.length;
-            let stats = { ai: 0, copy: 0, paste: 0 };
-            activeLogs.forEach(l => {
-                if(l.type.includes('chat_user')) stats.ai++;
-                if(l.type === 'copy') stats.copy++;
-                if(l.type === 'paste') stats.paste++;
-            });
-            const totalTime = globalData.submissions.reduce((a, b) => a + (b.totalTimeSeconds || 0), 0);
-            const avgTime = subCount ? Math.floor(totalTime / subCount) : 0;
-            document.getElementById('stat-count').innerText = subCount;
-            document.getElementById('stat-ai').innerText = stats.ai;
-            document.getElementById('stat-copy').innerText = stats.copy + stats.paste;
-            document.getElementById('stat-time').innerText = `${Math.floor(avgTime/60)}m ${avgTime%60}s`;
-            const totalQuestions = (subCount || 1) * QUESTIONS_COUNT;
-            const aiRate = (stats.ai / totalQuestions) * 100;
-            const pasteRate = (stats.paste / totalQuestions) * 100;
-            document.getElementById('rate-ai').innerText = aiRate.toFixed(1) + '%';
-            document.getElementById('rate-paste').innerText = pasteRate.toFixed(1) + '%';
-            const ctx = document.getElementById('behaviorChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['AI 提问频率', '答案搬运频率'],
-                    datasets: [{ label: '百分比 (%)', data: [aiRate, pasteRate], backgroundColor: ['rgba(168, 85, 247, 0.6)', 'rgba(249, 115, 22, 0.6)'], borderWidth: 1 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } } }, plugins: { legend: { display: false } } }
+        function renderList(list) {
+            const container = document.getElementById('questions-list');
+            document.getElementById('total-count').innerText = list.length;
+            container.innerHTML = '';
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-10"><p>暂无题目，请在左侧录入。</p></div>`;
+                return;
+            }
+            list.forEach(q => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start gap-4";
+                div.innerHTML = `
+                    <div class="flex-1"><p class="text-slate-800 text-sm whitespace-pre-wrap">${q.text}</p></div>
+                    <button onclick="window.deleteQuestion('${q.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>
+                `;
+                container.appendChild(div);
             });
         }
+
+        initApp();
     </script>
 </body>
 </html>
