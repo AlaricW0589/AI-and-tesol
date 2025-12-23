@@ -14,60 +14,58 @@
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-indigo-50 text-slate-800 font-sans h-screen overflow-hidden relative">
 
-    <!-- 装饰元素 -->
+    <!-- 背景装饰 -->
     <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float"></div>
     <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" style="animation-delay: 2s"></div>
 
-    <div class="container mx-auto px-4 h-full flex flex-col justify-center items-center relative z-10">
+    <div class="relative z-10 flex flex-col items-center justify-center h-full px-4">
         
-        <header class="text-center mb-16">
-            <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-xl mb-6 text-blue-600 text-4xl">
-                <i class="fa-solid fa-brain"></i>
-            </div>
-            <h1 class="text-4xl md:text-5xl font-bold text-slate-800 mb-4 tracking-tight">犹豫行为研究平台</h1>
-            <p class="text-lg text-slate-500 max-w-2xl mx-auto">在线答题过程数据采集与认知状态分析系统</p>
-        </header>
+        <div class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
+                Hesitation Behavior <br>
+                <span class="text-blue-600">Research Lab</span>
+            </h1>
+            <p class="text-lg text-slate-600 max-w-xl mx-auto">
+                Process Data Collection & Cognitive State Analysis
+            </p>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+        <div class="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
             
             <!-- 学生入口 -->
-            <a href="student.html" class="group relative block transform hover:-translate-y-2 transition-all duration-300">
-                <div class="glass-card h-72 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-lg hover:shadow-2xl hover:border-blue-200 border-t-4 border-blue-500">
-                    <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors duration-300">
-                        <i class="fa-solid fa-user-graduate text-2xl text-blue-600 group-hover:text-white transition-colors"></i>
+            <a href="student.html" class="group relative block transform hover:-translate-y-1 transition-all duration-300">
+                <div class="glass-card rounded-3xl p-8 h-full shadow-lg hover:shadow-2xl hover:bg-white transition-all border-l-4 border-blue-500 flex flex-col items-start">
+                    <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-graduation-cap text-2xl text-blue-600"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-slate-800 mb-2">学生</h2>
-                    <p class="text-slate-500 mb-6">参加在线认知评估，系统将自动记录答题行为。</p>
-                    <span class="inline-flex items-center text-blue-600 font-bold group-hover:underline">
-                        开始答题 <i class="fa-solid fa-arrow-right ml-2"></i>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">我是学生 (Participant)</h2>
+                    <p class="text-slate-500 mb-6 text-sm">参与在线测评。系统将记录您的答题轨迹。</p>
+                    <span class="mt-auto inline-flex items-center text-blue-600 font-bold text-sm uppercase tracking-wide group-hover:underline">
+                        开始实验 <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                     </span>
                 </div>
             </a>
 
-            <!-- 研究员入口 -->
-            <div class="grid grid-rows-2 gap-4 h-72">
-                <!-- 题库录入 -->
-                <a href="admin.html" class="group relative block h-full transform hover:-translate-y-1 transition-all duration-300">
-                    <div class="glass-card h-72 rounded-3xl p-6 flex items-center shadow-md hover:shadow-xl border-l-4 border-slate-500">
-                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mr-4 shrink-0">
-                            <i class="fa-solid fa-pen-to-square text-slate-600"></i>
-                        </div>
-                        <div class="text-left">
-                            <h3 class="font-bold text-slate-800 text-lg">数据管理</h3>
-                            <p class="text-sm text-slate-500">设计及数据分析。</p>
-                        </div>
-                        <div class="ml-auto text-slate-300 group-hover:text-slate-600"><i class="fa-solid fa-chevron-right"></i></div>
+            <!-- 管理员入口 -->
+            <a href="admin.html" class="group relative block transform hover:-translate-y-1 transition-all duration-300">
+                <div class="glass-card rounded-3xl p-8 h-full shadow-lg hover:shadow-2xl hover:bg-white transition-all border-l-4 border-slate-500 flex flex-col items-start">
+                    <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-chart-line text-2xl text-slate-600"></i>
                     </div>
-                </a>
-            </div>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">我是研究者 (Researcher)</h2>
+                    <p class="text-slate-500 mb-6 text-sm">题库管理与数据导出 (CSV/Excel)。</p>
+                    <span class="mt-auto inline-flex items-center text-slate-600 font-bold text-sm uppercase tracking-wide group-hover:underline">
+                        进入后台 <i class="fa-solid fa-lock ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </span>
+                </div>
+            </a>
 
         </div>
 
-        <footer class="mt-16 text-slate-400 text-sm">
-            &copy; 2025 Hesitation Research Project | v2.3.0
-        </footer>
+        <div class="mt-16 text-slate-400 text-xs">
+            &copy; 2025 Hesitation Research Project.
+        </div>
     </div>
+
 </body>
 </html>
-
-
