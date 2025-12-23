@@ -3,569 +3,474 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 辅助学习 - 学生端</title>
+    <title>在线测评系统 - 学生端</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* 基础动画 */
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* 动画效果 */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
         
-        /* 移动端优化：聊天记录滚动条 */
-        .chat-scroll {
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 transparent;
-        }
-        .chat-scroll::-webkit-scrollbar { width: 4px; }
-        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-        .chat-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-pop-up { animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* 自定义样式 */
+        .option-card { transition: all 0.2s; }
+        .option-card:hover { background-color: #f8fafc; border-color: #94a3b8; }
+        .option-card.selected { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+        
+        .confidence-btn { transition: transform 0.1s, box-shadow 0.1s; }
+        .confidence-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
-    <!-- 顶部导航 (Sticky: 吸顶) -->
-    <header class="bg-white shadow-sm border-b border-slate-200 p-4 sticky top-0 z-20">
-        <div class="max-w-4xl mx-auto flex justify-between items-center">
+    <!-- 1. 顶部导航栏 -->
+    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <a href="index.html" class="text-slate-400 hover:text-blue-600 transition-colors mr-1" title="返回首页"><i class="fa-solid fa-house"></i></a>
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shrink-0">
-                    <i class="fa-solid fa-pen-nib"></i>
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                    <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-lg text-slate-700 truncate">AI 学习实验室</h1>
+                <h1 class="font-bold text-lg text-slate-700">在线测评</h1>
             </div>
-            <div id="connection-status" class="text-xs text-slate-400 flex items-center gap-2 shrink-0">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> <span class="hidden sm:inline">初始化...</span>
+            <div id="user-info-display" class="hidden text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                <!-- 动态填充用户信息 -->
             </div>
         </div>
-    </header>
+    </nav>
 
-    <!-- 主内容区 (移除 overflow-hidden，允许页面整体滚动) -->
-    <main class="flex-1 w-full max-w-4xl mx-auto p-4 flex flex-col gap-6 mb-10">
+    <!-- 2. 主内容区域 -->
+    <main class="flex-1 w-full max-w-2xl mx-auto p-4 md:p-6 flex flex-col justify-center">
 
-        <!-- 配置警告弹窗 -->
-        <div id="config-warning" class="hidden bg-red-50 border border-red-200 rounded-xl p-4 text-center shadow-lg">
-            <i class="fa-solid fa-triangle-exclamation text-2xl text-red-500 mb-2"></i>
-            <h3 class="text-base font-bold text-red-700">配置错误</h3>
-            <p class="text-xs text-red-600 mt-1">API Key 无效，请检查代码配置。</p>
-        </div>
-
-        <!-- 1. 答题区域 -->
-        <section id="quiz-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all duration-500">
-            <!-- 标题栏 -->
-            <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                <h2 class="font-bold text-slate-700 flex items-center text-sm sm:text-base">
-                    <span class="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2 shrink-0">1</span>
-                    练习作业
-                </h2>
-                <div class="flex items-center gap-3">
-                    <span id="question-tracker" class="text-xs font-mono text-slate-500 font-bold">-- / --</span>
-                    <div class="w-24 sm:w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all duration-500 ease-out"></div>
+        <!-- 阶段 A: 登录界面 -->
+        <div id="login-view" class="w-full max-w-md mx-auto animate-fade-in">
+            <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 text-center">
+                <div class="mb-6">
+                    <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-user-check"></i>
                     </div>
+                    <h2 class="text-2xl font-bold text-slate-800">考生登录</h2>
+                    <p class="text-slate-500 mt-2 text-sm">请输入您的信息开始答题，系统将自动记录您的答题过程数据用于研究。</p>
                 </div>
-            </div>
-
-            <div class="p-5 sm:p-8 relative min-h-[250px]">
-                <!-- 步骤1: 输入姓名 -->
-                <div id="name-input-container" class="flex flex-col items-center justify-center py-8 space-y-6 animate-fade-in">
-                    <div class="text-center space-y-2">
-                        <h3 class="text-lg sm:text-xl font-bold text-slate-800">身份验证</h3>
-                        <p class="text-sm text-slate-500">请输入你的真实姓名开始答题。</p>
-                        <p id="ip-display" class="text-xs text-slate-400 font-mono">检测 IP: 获取中...</p>
-                    </div>
-                    
-                    <input type="text" id="student-name" disabled class="w-full max-w-xs p-3 text-center border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none transition-colors text-base disabled:bg-slate-100 disabled:cursor-not-allowed" placeholder="等待连接...">
-                    
-                    <button onclick="window.checkAndStart()" id="btn-start" disabled class="w-full max-w-xs bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2">
-                        <span id="btn-text">正在连接服务器...</span> <i id="btn-icon" class="fa-solid fa-circle-notch fa-spin"></i>
-                    </button>
-                    
-                    <p id="error-msg" class="text-xs sm:text-sm text-red-500 font-bold hidden mt-2 text-center"><i class="fa-solid fa-circle-exclamation mr-1"></i> <span id="error-text"></span></p>
-                </div>
-
-                <!-- 步骤2: 题目内容 -->
-                <div id="question-container" class="hidden flex flex-col gap-4 sm:gap-6 animate-fade-in">
+                
+                <div class="space-y-4 text-left">
                     <div>
-                        <span class="text-xs font-bold text-blue-600 tracking-wider uppercase mb-1 block">Question <span id="q-number">1</span></span>
-                        <p id="q-text" class="text-lg sm:text-xl text-slate-800 font-medium leading-relaxed">题目加载中...</p>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">姓名</label>
+                        <input type="text" id="input-name" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all" placeholder="请输入您的真实姓名">
                     </div>
-                    
-                    <textarea id="q-answer" class="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none text-slate-700 leading-relaxed text-base" placeholder="在此输入你的详细答案..."></textarea>
-                    
-                    <div class="flex justify-between items-center pt-2 border-t border-slate-100 mt-2">
-                        <button id="btn-prev" onclick="window.changeQuestion(-1)" class="text-slate-400 hover:text-slate-600 px-3 py-2 font-medium transition-colors text-sm">
-                            <i class="fa-solid fa-arrow-left mr-1"></i> 上一题
-                        </button>
-                        <div class="flex gap-2 sm:gap-3">
-                            <button id="btn-next" onclick="window.changeQuestion(1)" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2 rounded-lg transition-colors font-bold shadow-sm text-sm">
-                                下一题
-                            </button>
-                            <button id="btn-submit" onclick="window.submitAnswer()" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all font-bold shadow-md shadow-blue-600/20 items-center gap-2 text-sm">
-                                提交 <i class="fa-solid fa-paper-plane"></i>
-                            </button>
-                        </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">学号 / ID</label>
+                        <input type="text" id="input-id" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all" placeholder="请输入学号">
                     </div>
-                </div>
-
-                <!-- 步骤3: 完成状态 -->
-                <div id="quiz-completed-msg" class="hidden flex flex-col items-center justify-center py-10 text-center animate-fade-in">
-                    <div class="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 text-xl">
-                        <i class="fa-solid fa-check"></i>
-                    </div>
-                    <h3 class="text-lg font-bold text-slate-800">提交成功</h3>
-                    <p class="text-sm text-slate-500 mt-2 max-w-xs">你的答案已归档。AI 交互已锁定。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 2. AI 助教区域 (固定高度，内部滚动) -->
-        <section class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-[500px] sm:h-[600px] overflow-hidden scroll-mt-4" id="ai-section">
-            <div class="bg-slate-50 p-3 sm:p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
-                <h2 class="font-bold text-slate-700 flex items-center text-sm sm:text-base">
-                    <span class="bg-purple-100 text-purple-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">2</span>
-                    AI 学习助手
-                </h2>
-                <span class="text-[10px] sm:text-xs px-2 py-1 bg-white border rounded text-slate-400">系统记录中</span>
-            </div>
-            
-            <!-- 聊天记录区域：占据剩余空间，允许内部滚动 -->
-            <div id="chat-history" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 chat-scroll">
-                <div class="flex items-start gap-3">
-                    <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border border-purple-200 shadow-sm">
-                        <i class="fa-solid fa-robot text-purple-600 text-xs"></i>
-                    </div>
-                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[90%]">
-                        <p class="text-sm text-slate-700 leading-relaxed">你好！我是你的 AI 助教。做题遇到困难可以问我。📱</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 输入框区域：固定在底部 -->
-            <div class="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0">
-                <div class="relative flex items-end gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 transition-all">
-                    <textarea id="chat-input" rows="1" class="w-full bg-transparent border-none focus:ring-0 p-2 text-slate-700 resize-none max-h-24 text-sm sm:text-base" placeholder="在此输入问题..." onkeydown="window.handleChatKey(event)"></textarea>
-                    <button onclick="window.sendChat()" id="send-btn" class="mb-1 mr-1 p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm shrink-0">
-                        <i class="fa-solid fa-paper-plane"></i>
+                    <button onclick="startExam()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-blue-200 mt-2">
+                        开始答题 <i class="fa-solid fa-arrow-right ml-2"></i>
                     </button>
-                    <div id="ai-loading" class="hidden absolute right-12 bottom-3"><div class="loader"></div></div>
                 </div>
             </div>
-        </section>
-        
-        <!-- 底部占位，防止手机底部手势条遮挡 -->
-        <div class="h-6"></div>
+        </div>
+
+        <!-- 阶段 B: 答题界面 (默认隐藏) -->
+        <div id="quiz-view" class="hidden w-full animate-fade-in">
+            <!-- 进度条 -->
+            <div class="mb-6">
+                <div class="flex justify-between text-xs text-slate-500 mb-2">
+                    <span id="progress-text">题目 1 / --</span>
+                    <span>进度</span>
+                </div>
+                <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-blue-600 rounded-full transition-all duration-500 w-0"></div>
+                </div>
+            </div>
+
+            <!-- 题目卡片 -->
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-slate-100 relative min-h-[400px] flex flex-col">
+                <div id="loading-spinner" class="absolute inset-0 bg-white flex items-center justify-center z-20 hidden">
+                    <div class="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                </div>
+
+                <div class="flex-1">
+                    <span class="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full mb-4">单选题</span>
+                    <h3 id="question-text" class="text-xl font-medium text-slate-800 leading-relaxed mb-6">
+                        <!-- 题目内容占位 -->
+                    </h3>
+                    
+                    <div id="options-container" class="space-y-3">
+                        <!-- 选项动态生成 -->
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+                    <button id="submit-btn" onclick="preSubmitCheck()" disabled class="px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all">
+                        提交本题
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 阶段 C: 提交成功 (默认隐藏) -->
+        <div id="success-view" class="hidden w-full max-w-md mx-auto text-center animate-fade-in">
+            <div class="bg-white p-10 rounded-2xl shadow-xl border border-slate-100">
+                <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">答题完成</h2>
+                <p class="text-slate-500 mb-6">所有数据已成功上传。感谢您的配合！</p>
+                <div class="bg-slate-50 p-4 rounded-xl text-left text-sm text-slate-600 mb-6">
+                    <p><i class="fa-regular fa-clock mr-2"></i>总用时: <span id="total-time-display" class="font-bold">--</span></p>
+                    <p class="mt-2"><i class="fa-solid fa-list-check mr-2"></i>完成题目: <span id="total-count-display" class="font-bold">--</span></p>
+                </div>
+                <button onclick="location.reload()" class="text-blue-600 hover:text-blue-700 font-medium">返回首页</button>
+            </div>
+        </div>
+
     </main>
 
-    <!-- 知情同意书弹窗 -->
-    <div id="consent-modal" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in flex flex-col max-h-[80vh]">
-            <div class="p-4 border-b border-slate-200 bg-slate-50">
-                <h3 class="text-base font-bold text-slate-800"><i class="fa-solid fa-file-contract text-blue-600 mr-2"></i>研究知情同意书</h3>
-            </div>
+    <!-- 3. 信心监测弹窗 (Modal) -->
+    <div id="confidence-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 md:p-8 animate-pop-up transform scale-100">
+            <h3 class="text-xl font-bold text-slate-800 text-center mb-2">本次作答自我监测</h3>
+            <p class="text-slate-500 text-center text-sm mb-8">请诚实评估：你对刚才所选答案的把握有多大？</p>
             
-            <div class="p-5 overflow-y-auto terms-scroll text-xs sm:text-sm text-slate-600 leading-relaxed space-y-3">
-                <p>亲爱的同学：欢迎参与本项研究。</p>
-                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <ul class="list-disc pl-4 space-y-1">
-                        <li><strong>数据收集：</strong> 系统将记录您的答题内容、答题用时，以及您与 AI 助手的所有交互数据（包括提问内容、AI 回复、复制/粘贴操作等）。</li>
-                        <li><strong>隐私保护：</strong> 收集的数据仅用于学术研究与教学分析。我们将严格保密，数据在处理和发表时将进行去敏化处理，不会泄露您的个人身份信息。</li>
-                        <li><strong>学术诚信：</strong> 请按照您真实的学习习惯使用 AI 辅助，系统记录旨在还原真实的学习过程。</li>
-                    </ul>
-                </div>
-                <p>点击“确认”即表示同意授权。</p>
-            </div>
-
-            <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
-                <label class="flex items-center gap-2 mb-4 cursor-pointer select-none">
-                    <input type="checkbox" id="consent-checkbox" onchange="window.toggleConsentBtn()" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                    <span class="text-xs sm:text-sm font-medium text-slate-700">我已阅读并同意</span>
-                </label>
-                <button id="btn-consent-confirm" onclick="window.confirmConsent()" disabled class="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/10">
-                    确认并开始
+            <div class="grid grid-cols-1 gap-3">
+                <!-- 5级量表 -->
+                <button onclick="handleConfidence(5)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-emerald-500 group-hover:text-white transition-colors">5</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-emerald-700">非常有把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-emerald-600/70">我确信答案是正确的</div>
+                    </div>
                 </button>
+
+                <button onclick="handleConfidence(4)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-teal-500 group-hover:text-white transition-colors">4</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-teal-700">比较有把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-teal-600/70">大概率是正确的</div>
+                    </div>
+                </button>
+
+                <button onclick="handleConfidence(3)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-yellow-500 hover:bg-yellow-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-yellow-500 group-hover:text-white transition-colors">3</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-yellow-700">一般 / 不确定</div>
+                        <div class="text-xs text-slate-400 group-hover:text-yellow-600/70">我不确定，可能对也可能错</div>
+                    </div>
+                </button>
+
+                <button onclick="handleConfidence(2)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">2</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-orange-700">不太有把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-orange-600/70">感觉可能是错的，但我只能选这个</div>
+                    </div>
+                </button>
+
+                <button onclick="handleConfidence(1)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-red-500 hover:bg-red-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-red-500 group-hover:text-white transition-colors">1</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-red-700">完全没把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-red-600/70">我是瞎猜的</div>
+                    </div>
+                </button>
+            </div>
+            <div class="mt-4 text-center">
+                 <p class="text-xs text-slate-300">本题不可回退，点击选项自动进入下一题</p>
             </div>
         </div>
     </div>
 
-    <!-- 逻辑代码 -->
+    <!-- 底部版权 -->
+    <footer class="py-4 text-center text-slate-300 text-xs">
+        &copy; 2025 Research System | Hesitation Behavior Analysis
+    </footer>
+
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, orderBy, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================
-        // 您的真实配置 (已保留)
-        // ==========================================
-        const FIREBASE_CONFIG = {
-            apiKey: "AIzaSyCjzR_Idy9h7AWHLRxz_bzt77i3iCInrU8",
-            authDomain: "ai-and-education-47d62.firebaseapp.com",
-            projectId: "ai-and-education-47d62",
-            storageBucket: "ai-and-education-47d62.firebasestorage.app",
-            messagingSenderId: "983382295554",
-            appId: "1:983382295554:web:f65048ae253b284816131b",
-            measurementId: "G-Z8S8D9YN6D"
-        };
-        const GEMINI_API_KEY = "AIzaSyDnI8ptuZlh6vcW3WSRtMywSsCea9ywuHE";
-        // ==========================================
-
-        const QUESTIONS_TO_FETCH = 5;
-        let state = {
-            studentName: "", 
-            clientIP: "check-pending",
-            currentQuestionIndex: 0,
-            answers: {},
-            quizStartTime: null,
-            questionStartTime: null,
-            questionDurations: {},
-            questions: [], 
-            user: null,
+        // 全局状态管理
+        const state = {
+            appId: '',
             db: null,
-            appId: 'github-pages-v1',
-            isSubmitted: false
-        };
-
-        const get = (id) => document.getElementById(id);
-
-        // --- UI 适配：自动滚动到 AI ---
-        function scrollToAI() {
-            // 在移动端，当用户想用AI时，平滑滚动到底部
-            if(window.innerWidth < 768) {
-                get('ai-section').scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-
-        // --- 弹窗逻辑 ---
-        window.toggleConsentBtn = () => {
-            const checked = get('consent-checkbox').checked;
-            const btn = get('btn-consent-confirm');
-            btn.disabled = !checked;
-            if (checked) {
-                btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
-            } else {
-                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                btn.classList.add('bg-slate-800', 'hover:bg-slate-700');
-            }
-        };
-
-        window.confirmConsent = () => {
-            get('consent-modal').classList.add('hidden');
-            window.startQuiz(state.studentName);
-        };
-
-        function updateBtnState(enabled, text, iconClass = "fa-arrow-right") {
-            const btn = get('btn-start');
-            const input = get('student-name');
-            const icon = get('btn-icon');
+            user: null,
+            studentInfo: { name: '', id: '' },
+            questions: [],
+            currentQIndex: 0,
+            answersLog: [], // 最终提交的数据包
             
-            get('btn-text').innerText = text;
-            icon.className = `fa-solid ${iconClass}`;
+            // 当前题目的临时行为数据
+            currentMetrics: {
+                startTime: 0,
+                firstClickTime: null,
+                changeCount: 0,
+                selectedOption: null,
+                optionId: null
+            }
+        };
+
+        // 初始化
+        async function initApp() {
+            const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+            state.appId = window.__app_id || 'default-app';
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            state.db = getFirestore(app);
+
+            try {
+                const userCred = await signInAnonymously(auth);
+                state.user = userCred.user;
+                console.log("System Ready. User:", state.user.uid);
+            } catch (error) {
+                console.error("Auth Error", error);
+                alert("系统连接失败，请刷新重试");
+            }
+        }
+
+        // ------------------------- 业务逻辑 -------------------------
+
+        // 1. 开始考试
+        window.startExam = async function() {
+            const name = document.getElementById('input-name').value.trim();
+            const id = document.getElementById('input-id').value.trim();
+
+            if (!name || !id) {
+                alert("请填写完整的姓名和学号");
+                return;
+            }
+
+            state.studentInfo = { name, id };
             
-            if (enabled) {
-                btn.disabled = false;
-                btn.classList.remove('bg-slate-800', 'hover:bg-slate-700'); 
-                btn.classList.add('bg-blue-600', 'hover:bg-blue-700'); 
-                input.disabled = false;
-                input.placeholder = "输入姓名";
-            } else {
-                btn.disabled = true;
-                btn.classList.add('bg-slate-800');
-                btn.classList.remove('bg-blue-600');
-                if(text !== "请输入姓名") input.disabled = true;
-            }
-        }
+            // UI 切换
+            document.getElementById('user-info-display').innerText = `${name} (${id})`;
+            document.getElementById('user-info-display').classList.remove('hidden');
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('loading-spinner').classList.remove('hidden'); // 临时显示loading
+            document.getElementById('quiz-view').classList.remove('hidden');
 
-        async function init() {
-            detectIP();
+            // 拉取题目
+            await loadQuestions();
+        };
 
+        // 2. 拉取题目
+        async function loadQuestions() {
+            if (!state.db) return;
             try {
-                const app = initializeApp(FIREBASE_CONFIG);
-                const auth = getAuth(app);
-                state.db = getFirestore(app);
-
-                get('connection-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 正在登录...';
-                
-                await signInAnonymously(auth);
-
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        state.user = user;
-                        get('connection-status').innerHTML = '<span class="text-green-500 font-bold">● 系统就绪</span>';
-                        updateBtnState(false, "加载题库中...", "fa-circle-notch fa-spin");
-                        await fetchAndRandomizeQuestions();
-                    }
-                });
-            } catch (e) { 
-                console.error("Init Error:", e);
-                get('connection-status').innerHTML = '<span class="text-red-500">连接错误</span>'; 
-                updateBtnState(false, "连接失败", "fa-xmark");
-                alert("连接失败: " + e.message);
-            }
-        }
-
-        async function detectIP() {
-            const ipDisplay = get('ip-display');
-            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2000));
-            try {
-                const fetchIp = fetch('https://api.ipify.org?format=json').then(res => res.json());
-                const ipData = await Promise.race([fetchIp, timeout]);
-                state.clientIP = ipData.ip;
-                ipDisplay.innerText = `检测 IP: ${state.clientIP}`;
-                ipDisplay.classList.add("text-green-500");
-            } catch (e) {
-                state.clientIP = "unknown-ip";
-                ipDisplay.innerText = `检测 IP: 未知 (离线模式)`;
-                ipDisplay.classList.add("text-orange-400");
-            }
-        }
-
-        async function fetchAndRandomizeQuestions() {
-            try {
+                // 从 admin 录入的 question_bank 获取题目
                 const qRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'question_bank');
-                const snapshot = await getDocs(qRef);
-                const allQuestions = [];
-                snapshot.forEach(doc => allQuestions.push(doc.data().text));
-
-                if (allQuestions.length === 0) {
-                    state.questions = [
-                        "简述光合作用的过程 (默认题目)",
-                        "解释什么是人工智能 (默认题目)",
-                        "1 + 1 等于几？为什么？ (默认题目)",
-                        "写一首关于春天的诗 (默认题目)",
-                        "翻译 'Hello World' (默认题目)"
-                    ];
-                } else {
-                    for (let i = allQuestions.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
-                    }
-                    state.questions = allQuestions.slice(0, QUESTIONS_TO_FETCH);
-                }
+                // 这里按时间倒序或特定顺序获取
+                const qQuery = query(qRef, orderBy('timestamp', 'desc')); 
+                const snapshot = await getDocs(qQuery);
                 
-                const input = get('student-name');
-                input.disabled = false;
-                updateBtnState(false, "请输入姓名", "fa-pen");
-
-                input.addEventListener('input', (e) => {
-                    const hasText = e.target.value.trim().length > 0;
-                    updateBtnState(hasText, hasText ? "开始答题" : "请输入姓名", hasText ? "fa-arrow-right" : "fa-pen");
+                state.questions = [];
+                snapshot.forEach(doc => {
+                    state.questions.push({ id: doc.id, ...doc.data() });
                 });
 
-            } catch (error) { 
-                state.questions = ["获取失败，请尝试刷新页面。"];
-                updateBtnState(true, "开始答题 (离线模式)", "fa-triangle-exclamation");
-                get('student-name').disabled = false;
+                // 简单的洗牌算法 (可选，防止作弊)
+                // state.questions.sort(() => Math.random() - 0.5);
+
+                if (state.questions.length === 0) {
+                    alert("题库暂无题目，请联系管理员");
+                    location.reload();
+                    return;
+                }
+
+                renderQuestion();
+            } catch (e) {
+                console.error("Load Questions Error", e);
+                alert("加载题目失败");
             }
         }
 
-        window.checkAndStart = async () => {
-            const name = get('student-name').value.trim();
-            if (!name) return;
-
-            if (name === "Alaric") { window.startQuiz(name); return; }
-
-            updateBtnState(false, "身份校验中...", "fa-spinner fa-spin");
-            get('error-msg').classList.add('hidden');
-
-            try {
-                const colRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'submissions_v2');
-                const nameQuery = query(colRef, where("studentName", "==", name));
-                const nameSnap = await getDocs(nameQuery);
-                if (!nameSnap.empty) throw new Error("该姓名已提交过作业，请勿重复答题。");
-
-                if (state.clientIP !== "unknown-ip" && state.clientIP !== "check-pending") {
-                    const ipQuery = query(colRef, where("ipAddress", "==", state.clientIP));
-                    const ipSnap = await getDocs(ipQuery);
-                    if (!ipSnap.empty) throw new Error("该 IP 地址已提交过作业，每人限一次。");
-                }
-
-                // 校验通过 -> 存储临时姓名 -> 弹出条款
-                state.studentName = name;
-                get('consent-modal').classList.remove('hidden');
-                updateBtnState(true, "开始答题", "fa-arrow-right");
-
-            } catch (e) {
-                get('error-msg').classList.remove('hidden');
-                get('error-text').innerText = e.message;
-                updateBtnState(true, "开始答题", "fa-arrow-right");
-            }
-        };
-
-        window.startQuiz = (name) => {
-            state.studentName = name;
-            state.quizStartTime = Date.now();
-            get('name-input-container').classList.add('hidden');
-            get('question-container').classList.remove('hidden');
-            state.questions.forEach((_, i) => state.questionDurations[i] = 0);
-            renderQuestion();
-            logAction('system', `Started quiz: ${name} (IP: ${state.clientIP})`);
-        };
-
+        // 3. 渲染当前题目
         function renderQuestion() {
-            const idx = state.currentQuestionIndex;
-            get('q-number').textContent = idx + 1;
-            get('q-text').textContent = state.questions[idx];
-            get('q-answer').value = state.answers[idx] || "";
-            get('question-tracker').textContent = `${idx + 1} / ${state.questions.length}`;
-            get('progress-bar').style.width = `${((idx + 1) / state.questions.length) * 100}%`;
+            const q = state.questions[state.currentQIndex];
+            const total = state.questions.length;
+
+            // 更新进度条
+            const progress = ((state.currentQIndex) / total) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-text').innerText = `题目 ${state.currentQIndex + 1} / ${total}`;
+
+            // 渲染内容
+            document.getElementById('question-text').innerText = q.text;
             
-            get('btn-prev').disabled = idx === 0;
-            get('btn-prev').style.opacity = idx === 0 ? '0' : '1';
+            const optsContainer = document.getElementById('options-container');
+            optsContainer.innerHTML = '';
             
-            if (idx === state.questions.length - 1) {
-                get('btn-next').classList.add('hidden');
-                get('btn-submit').classList.remove('hidden');
-                get('btn-submit').classList.add('flex');
-            } else {
-                get('btn-next').classList.remove('hidden');
-                get('btn-submit').classList.add('hidden');
-                get('btn-submit').classList.remove('flex');
-            }
-            state.questionStartTime = Date.now();
+            // 确保有 options 数组
+            const options = q.options || []; // 假设结构 {text: '...', id: 'A'}
+            
+            options.forEach((opt, idx) => {
+                const btn = document.createElement('div');
+                btn.className = `option-card w-full p-4 border border-slate-200 rounded-xl cursor-pointer flex items-center gap-3`;
+                btn.onclick = () => handleOptionSelect(idx, opt);
+                btn.innerHTML = `
+                    <div class="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 dot-indicator">
+                        <div class="w-3 h-3 rounded-full bg-blue-600 hidden"></div>
+                    </div>
+                    <span class="text-slate-700 font-medium">${opt}</span>
+                `;
+                optsContainer.appendChild(btn);
+            });
+
+            // 重置本题行为指标
+            state.currentMetrics = {
+                startTime: Date.now(), // 题目开始显示的时间
+                firstClickTime: null,  // 第一次点击选项的时间
+                changeCount: 0,        // 更改选项次数
+                selectedOption: null,  // 选中的文本
+                optionIndex: null      // 选中的索引
+            };
+
+            // 禁用提交按钮
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.className = "px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all";
         }
 
-        window.changeQuestion = (delta) => {
-            if (state.questionStartTime) {
-                state.questionDurations[state.currentQuestionIndex] = (state.questionDurations[state.currentQuestionIndex] || 0) + (Date.now() - state.questionStartTime);
-                state.questionStartTime = null;
+        // 4. 处理选项点击 (记录犹豫行为)
+        window.handleOptionSelect = function(idx, text) {
+            const now = Date.now();
+            
+            // 记录第一次点击时间 (Hesitation Metric: Reaction Time)
+            if (state.currentMetrics.firstClickTime === null) {
+                state.currentMetrics.firstClickTime = now - state.currentMetrics.startTime;
+            } else {
+                // 如果已经点过，说明在修改答案 (Hesitation Metric: Cognitive Conflict)
+                if (state.currentMetrics.optionIndex !== idx) {
+                    state.currentMetrics.changeCount++;
+                }
             }
-            state.answers[state.currentQuestionIndex] = get('q-answer').value;
-            state.currentQuestionIndex += delta;
-            renderQuestion();
+
+            // 更新状态
+            state.currentMetrics.selectedOption = text;
+            state.currentMetrics.optionIndex = idx;
+
+            // UI 更新
+            const container = document.getElementById('options-container');
+            Array.from(container.children).forEach((child, i) => {
+                const dot = child.querySelector('.dot-indicator div');
+                if (i === idx) {
+                    child.classList.add('selected');
+                    child.classList.remove('border-slate-200');
+                    dot.classList.remove('hidden');
+                    child.querySelector('.dot-indicator').classList.add('border-blue-600');
+                } else {
+                    child.classList.remove('selected');
+                    child.classList.add('border-slate-200');
+                    dot.classList.add('hidden');
+                    child.querySelector('.dot-indicator').classList.remove('border-blue-600');
+                }
+            });
+
+            // 激活提交按钮
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = false;
+            submitBtn.className = "px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95";
         };
 
-        window.submitAnswer = async () => {
-            if (!confirm("确定要提交吗？提交后无法修改。")) return;
-            const btn = get('btn-submit');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 上传中...`;
+        // 5. 点击提交本题 -> 弹出信心监测
+        window.preSubmitCheck = function() {
+            if (state.currentMetrics.optionIndex === null) return;
+            
+            // 显示 Modal
+            document.getElementById('confidence-modal').classList.remove('hidden');
+        };
+
+        // 6. 处理信心选择并进入下一题
+        window.handleConfidence = function(level) {
+            const now = Date.now();
+            const q = state.questions[state.currentQIndex];
+
+            // 构建单题完整数据包
+            const questionData = {
+                questionId: q.id,
+                questionText: q.text, // 冗余存便于分析
+                userAnswer: state.currentMetrics.selectedOption,
+                isCorrect: false, // 需后台比对，前端暂存
+                
+                // 核心研究数据：犹豫行为指标
+                behaviorMetrics: {
+                    totalDuration: now - state.currentMetrics.startTime, // 总耗时
+                    timeToFirstClick: state.currentMetrics.firstClickTime, // 初始反应时
+                    answerChangeCount: state.currentMetrics.changeCount,   // 犹豫修改次数
+                    timestamp: now
+                },
+                
+                // 核心研究数据：元认知监测
+                metacognition: {
+                    confidenceLevel: level // 1-5
+                }
+            };
+
+            state.answersLog.push(questionData);
+
+            // 隐藏 Modal
+            document.getElementById('confidence-modal').classList.add('hidden');
+
+            // 逻辑分支：下一题 或 结束
+            if (state.currentQIndex < state.questions.length - 1) {
+                state.currentQIndex++;
+                renderQuestion();
+            } else {
+                finishExam();
+            }
+        };
+
+        // 7. 结束考试并统一上传
+        async function finishExam() {
+            document.getElementById('quiz-view').classList.add('hidden');
+            document.getElementById('loading-spinner').classList.remove('hidden'); // 复用loading显示上传中
+
+            // 构建总Session数据
+            const sessionData = {
+                student: state.studentInfo,
+                userId: state.user.uid,
+                startTime: state.answersLog[0]?.behaviorMetrics.timestamp - state.answersLog[0]?.behaviorMetrics.totalDuration,
+                endTime: Date.now(),
+                answers: state.answersLog,
+                // 统计摘要
+                summary: {
+                    totalQuestions: state.questions.length,
+                    avgConfidence: state.answersLog.reduce((acc, cur) => acc + cur.metacognition.confidenceLevel, 0) / state.questions.length
+                },
+                submittedAt: serverTimestamp()
+            };
 
             try {
-                if (state.questionStartTime) {
-                    state.questionDurations[state.currentQuestionIndex] = (state.questionDurations[state.currentQuestionIndex] || 0) + (Date.now() - state.questionStartTime);
-                }
-                state.answers[state.currentQuestionIndex] = get('q-answer').value;
+                // 写入 Firestore: artifacts/{appId}/public/data/exam_results
+                const resRef = doc(collection(state.db, 'artifacts', state.appId, 'public', 'data', 'exam_results'));
+                await setDoc(resRef, sessionData);
 
-                const submissionData = {
-                    studentName: state.studentName,
-                    userId: state.user.uid,
-                    ipAddress: state.clientIP, 
-                    timestamp: serverTimestamp(),
-                    totalTimeSeconds: Math.floor((Date.now() - state.quizStartTime) / 1000),
-                    details: state.questions.map((q, idx) => ({
-                        qNum: idx + 1,
-                        question: q,
-                        answer: state.answers[idx] || "(未作答)",
-                        durationMs: state.questionDurations[idx] || 0
-                    }))
-                };
-
-                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Network too slow")), 10000));
+                // 显示成功页
+                document.getElementById('loading-spinner').classList.add('hidden');
+                document.getElementById('success-view').classList.remove('hidden');
                 
-                await Promise.race([
-                    addDoc(collection(state.db, 'artifacts', state.appId, 'public', 'data', 'submissions_v2'), submissionData),
-                    timeout
-                ]);
-
-                state.isSubmitted = true;
-                logAction('submission', 'Complete submission uploaded');
-                get('question-container').classList.add('hidden');
-                get('quiz-completed-msg').classList.remove('hidden');
-                get('quiz-completed-msg').classList.add('flex');
+                // 填充统计
+                const durationMs = sessionData.endTime - sessionData.startTime;
+                const min = Math.floor(durationMs / 60000);
+                const sec = Math.floor((durationMs % 60000) / 1000);
+                document.getElementById('total-time-display').innerText = `${min}分 ${sec}秒`;
+                document.getElementById('total-count-display').innerText = `${state.questions.length} 题`;
 
             } catch (e) {
-                alert("上传失败: " + e.message);
-                btn.disabled = false;
-                btn.innerHTML = `重试提交 <i class="fa-solid fa-rotate-right"></i>`;
+                console.error("Upload Error", e);
+                alert("数据上传失败，请截图保存并联系管理员");
+                document.getElementById('loading-spinner').classList.add('hidden');
             }
-        };
-
-        window.handleChatKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendChat(); } };
-        
-        window.sendChat = async () => {
-            // 点击输入框或发送时，自动滚动到 AI 区域
-            scrollToAI();
-
-            const input = get('chat-input');
-            const text = input.value.trim();
-            if (!text) return;
-
-            if (!state.studentName || document.getElementById('question-container').classList.contains('hidden') && !state.isSubmitted) {
-                appendMsg('user', text);
-                input.value = "";
-                setTimeout(() => appendMsg('ai', "⚠️ 请先在上方输入姓名并完成验证，进入答题界面后，方可使用 AI 助教。"), 300);
-                return;
-            }
-
-            if (state.isSubmitted) {
-                appendMsg('user', text);
-                input.value = "";
-                setTimeout(() => {
-                    appendMsg('ai', "测试结束，感谢你的配合");
-                    logAction('chat_blocked', `Post-submission query: ${text}`);
-                }, 300);
-                return;
-            }
-
-            appendMsg('user', text);
-            input.value = "";
-            get('ai-loading').classList.remove('hidden');
-            logAction('chat_user', text);
-
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: text }] }], 
-                        systemInstruction: { parts: [{ text: "纯文本回答，禁止Markdown。" }] } 
-                    })
-                });
-
-                if (!res.ok) throw new Error(`API Error: ${res.status}`);
-
-                const data = await res.json();
-                let aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "系统繁忙";
-                aiText = aiText.replace(/[*#]/g, '');
-                appendMsg('ai', aiText);
-                logAction('chat_ai', aiText);
-
-            } catch (e) { 
-                appendMsg('ai', `系统繁忙 (${e.message})`); 
-            } finally { 
-                get('ai-loading').classList.add('hidden'); 
-            }
-        };
-
-        function appendMsg(role, text) {
-            const div = document.createElement('div');
-            div.className = "flex items-start gap-4 animate-fade-in";
-            const isUser = role === 'user';
-            div.innerHTML = `
-                ${!isUser ? `<div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0 border border-purple-200"><i class="fa-solid fa-robot text-purple-600"></i></div>` : ''}
-                <div class="${isUser ? 'ml-auto bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'} p-4 rounded-2xl shadow-sm max-w-[85%] text-sm whitespace-pre-wrap leading-relaxed">${text}</div>
-                ${isUser ? `<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 border border-blue-200"><i class="fa-solid fa-user text-blue-600"></i></div>` : ''}
-            `;
-            const hist = get('chat-history');
-            hist.appendChild(div);
-            hist.scrollTo({ top: hist.scrollHeight, behavior: 'smooth' });
         }
 
-        async function logAction(type, content) {
-            if (!state.user) return;
-            try { await addDoc(collection(state.db, 'artifacts', state.appId, 'public', 'data', 'chat_logs'), {
-                type, content: content.substring(0, 500), timestamp: serverTimestamp(),
-                studentName: state.studentName || "Anonymous", userId: state.user.uid
-            }); } catch (e) {}
-        }
+        // 启动
+        initApp();
 
-        get('chat-history').addEventListener('copy', () => { if (document.getSelection().toString()) logAction('copy', `Copied: "${document.getSelection().toString()}"`); });
-        get('q-answer').addEventListener('paste', (e) => { logAction('paste', `Pasted Q${state.currentQuestionIndex+1}: "${(e.clipboardData || window.clipboardData).getData('Text')}"`); });
-
-        init();
+        // 暴露给 window 以便 HTML onclick 调用
+        window.handleOptionSelect = handleOptionSelect;
+        window.preSubmitCheck = preSubmitCheck;
+        window.handleConfidence = handleConfidence;
     </script>
 </body>
 </html>
-
