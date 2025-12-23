@@ -2,485 +2,479 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>在线测评系统 - 学生端</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* 动画效果 */
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        
-        @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .animate-pop-up { animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-
-        /* 自定义样式 */
-        .option-card { transition: all 0.2s; }
-        .option-card:hover { background-color: #f8fafc; border-color: #94a3b8; }
-        .option-card.selected { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
-        
-        .confidence-btn { transition: transform 0.1s, box-shadow 0.1s; }
-        .confidence-btn:active { transform: scale(0.95); }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
-
-    <!-- 1. 顶部导航栏 -->
-    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
-        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-                    <i class="fa-solid fa-graduation-cap"></i>
-                </div>
-                <h1 class="font-bold text-lg text-slate-700">在线测评</h1>
-            </div>
-            <div id="user-info-display" class="hidden text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                <!-- 动态填充用户信息 -->
-            </div>
-        </div>
-    </nav>
-
-    <!-- 2. 主内容区域 -->
-    <main class="flex-1 w-full max-w-2xl mx-auto p-4 md:p-6 flex flex-col justify-center">
-
-        <!-- 阶段 A: 登录界面 -->
-        <div id="login-view" class="w-full max-w-md mx-auto animate-fade-in">
-            <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 text-center">
-                <div class="mb-6">
-                    <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-                        <i class="fa-solid fa-user-check"></i>
-                    </div>
-                    <h2 class="text-2xl font-bold text-slate-800">考生登录</h2>
-                    <p class="text-slate-500 mt-2 text-sm">请输入您的信息开始答题，系统将自动记录您的答题过程数据用于研究。</p>
-                </div>
-                
-                <div class="space-y-4 text-left">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">姓名</label>
-                        <input type="text" id="input-name" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 outline-none transition-all" placeholder="请输入您的真实姓名">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">学号 / ID</label>
-                        <input type="text" id="input-id" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 outline-none transition-all" placeholder="请输入学号">
-                    </div>
-                    <button onclick="startExam()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-blue-200 mt-2">
-                        开始答题 <i class="fa-solid fa-arrow-right ml-2"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 阶段 B: 答题界面 (默认隐藏) -->
-        <div id="quiz-view" class="hidden w-full animate-fade-in">
-            <!-- 进度条 -->
-            <div class="mb-6">
-                <div class="flex justify-between text-xs text-slate-500 mb-2">
-                    <span id="progress-text">题目 1 / --</span>
-                    <span>进度</span>
-                </div>
-                <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div id="progress-bar" class="h-full bg-blue-600 rounded-full transition-all duration-500 w-0"></div>
-                </div>
-            </div>
-
-            <!-- 题目卡片 -->
-            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-slate-100 relative min-h-[400px] flex flex-col">
-                <div id="loading-spinner" class="absolute inset-0 bg-white flex items-center justify-center z-20 hidden">
-                    <div class="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-                </div>
-
-                <div class="flex-1">
-                    <span class="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full mb-4">单选题</span>
-                    <h3 id="question-text" class="text-xl font-medium text-slate-800 leading-relaxed mb-6">
-                        <!-- 题目内容占位 -->
-                    </h3>
-                    
-                    <div id="options-container" class="space-y-3">
-                        <!-- 选项动态生成 -->
-                    </div>
-                </div>
-
-                <div class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
-                    <button id="submit-btn" onclick="preSubmitCheck()" disabled class="px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all">
-                        提交本题
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 阶段 C: 提交成功 (默认隐藏) -->
-        <div id="success-view" class="hidden w-full max-w-md mx-auto text-center animate-fade-in">
-            <div class="bg-white p-10 rounded-2xl shadow-xl border border-slate-100">
-                <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
-                    <i class="fa-solid fa-check"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-800 mb-2">答题完成</h2>
-                <p class="text-slate-500 mb-6">所有数据已成功上传。感谢您的配合！</p>
-                <div class="bg-slate-50 p-4 rounded-xl text-left text-sm text-slate-600 mb-6">
-                    <p><i class="fa-regular fa-clock mr-2"></i>总用时: <span id="total-time-display" class="font-bold">--</span></p>
-                    <p class="mt-2"><i class="fa-solid fa-list-check mr-2"></i>完成题目: <span id="total-count-display" class="font-bold">--</span></p>
-                </div>
-                <button onclick="location.reload()" class="text-blue-600 hover:text-blue-700 font-medium">返回首页</button>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- 3. 信心监测弹窗 (Modal) -->
-    <div id="confidence-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 md:p-8 animate-pop-up transform scale-100">
-            <h3 class="text-xl font-bold text-slate-800 text-center mb-2">本次作答自我监测</h3>
-            <p class="text-slate-500 text-center text-sm mb-8">请诚实评估：你对刚才所选答案的把握有多大？</p>
-            
-            <div class="grid grid-cols-1 gap-3">
-                <!-- 5级量表 -->
-                <button onclick="handleConfidence(5)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all bg-white">
-                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-emerald-500 group-hover:text-white transition-colors">5</div>
-                    <div class="text-left">
-                        <div class="font-bold text-slate-800 group-hover:text-emerald-700">非常有把握</div>
-                        <div class="text-xs text-slate-400 group-hover:text-emerald-600/70">我确信答案是正确的</div>
-                    </div>
-                </button>
-
-                <button onclick="handleConfidence(4)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50 transition-all bg-white">
-                    <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-teal-500 group-hover:text-white transition-colors">4</div>
-                    <div class="text-left">
-                        <div class="font-bold text-slate-800 group-hover:text-teal-700">比较有把握</div>
-                        <div class="text-xs text-slate-400 group-hover:text-teal-600/70">大概率是正确的</div>
-                    </div>
-                </button>
-
-                <button onclick="handleConfidence(3)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-yellow-500 hover:bg-yellow-50 transition-all bg-white">
-                    <div class="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-yellow-500 group-hover:text-white transition-colors">3</div>
-                    <div class="text-left">
-                        <div class="font-bold text-slate-800 group-hover:text-yellow-700">一般 / 不确定</div>
-                        <div class="text-xs text-slate-400 group-hover:text-yellow-600/70">我不确定，可能对也可能错</div>
-                    </div>
-                </button>
-
-                <button onclick="handleConfidence(2)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all bg-white">
-                    <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">2</div>
-                    <div class="text-left">
-                        <div class="font-bold text-slate-800 group-hover:text-orange-700">不太有把握</div>
-                        <div class="text-xs text-slate-400 group-hover:text-orange-600/70">感觉可能是错的，但我只能选这个</div>
-                    </div>
-                </button>
-
-                <button onclick="handleConfidence(1)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-red-500 hover:bg-red-50 transition-all bg-white">
-                    <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-red-500 group-hover:text-white transition-colors">1</div>
-                    <div class="text-left">
-                        <div class="font-bold text-slate-800 group-hover:text-red-700">完全没把握</div>
-                        <div class="text-xs text-slate-400 group-hover:text-red-600/70">我是瞎猜的</div>
-                    </div>
-                </button>
-            </div>
-            <div class="mt-4 text-center">
-                 <p class="text-xs text-slate-300">本题不可回退，点击选项自动进入下一题</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 底部版权 -->
-    <footer class="py-4 text-center text-slate-300 text-xs">
-        &copy; 2025 Research System | Hesitation Behavior Analysis
-    </footer>
-
-    <!-- Firebase SDK (使用稳定的 10.14.1 版本) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Reading Assessment - Research Environment</title>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js](https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js)";
+        import { getFirestore, doc, setDoc, serverTimestamp } from "[https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js](https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js)";
+        import { getAuth, signInAnonymously } from "[https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js](https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js)";
 
-        // 配置信息
+        // --- 配置区域 (请替换为您的 Firebase 项目配置) ---
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
             projectId: "hesitation-research",
             storageBucket: "hesitation-research.firebasestorage.app",
             messagingSenderId: "633469376688",
-            appId: "1:633469376688:web:dc26878c070a05a35b4375",
+            appId: "1:633469376688:web:dc26878c070a05a35b4375"
             measurementId: "G-ZNZ14Q5R98"
         };
-        
-        const PROJECT_ID = "hesitation-research";
 
-        // 全局状态管理
+        // --- 初始化 Firebase ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- 全局状态管理 ---
         const state = {
-            db: null,
             user: null,
-            studentInfo: { name: '', id: '' },
-            questions: [],
-            currentQIndex: 0,
-            answersLog: [], // 最终提交的数据包
+            studentInfo: {},
+            currentQuestionIndex: 0,
+            questions:,
+                    bloom: "Analyze",
+                    difficulty_b: 0.8
+                },
+                {
+                    id: "q2_detail",
+                    text: "Passage: In 1928, Alexander Fleming discovered penicillin, the first true antibiotic, by accident. He noticed that a mold called Penicillium notatum had contaminated his Petri dishes and killed the Staphylococcus bacteria he was cultivating.<br><br>Question: What was the name of the mold discovered by Fleming?",
+                    options:,
+                    bloom: "Remember",
+                    difficulty_b: -1.2
+                }
+            ],
+            answersLog:, // 存储所有答题数据
+            sessionStart: null,
             
-            // 当前题目的临时行为数据
+            // 当前题目的临时数据
             currentMetrics: {
                 startTime: 0,
                 firstClickTime: null,
                 changeCount: 0,
-                selectedOption: null,
-                optionId: null
+                trajectory:, // 鼠标轨迹 [(x,y,t)...]
+                hovers: {},     // 悬停数据 {optionIdx: {count, duration}}
+                offTask:     // 切屏记录
             }
         };
 
-        // 初始化
-        async function initApp() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                const auth = getAuth(app);
-                state.db = getFirestore(app);
+        // --- 工具类：高频轨迹记录器 (Trace Recorder) ---
+        class TraceRecorder {
+            constructor() {
+                this.isRecording = false;
+                this.throttleTime = 50; // 采样间隔 50ms (20Hz)
+                this.lastRecordTime = 0;
+            }
 
-                const userCred = await signInAnonymously(auth);
-                state.user = userCred.user;
-                console.log("System Ready. User:", state.user.uid);
-            } catch (error) {
-                console.error("Auth Error", error);
-                alert("系统连接失败，请刷新重试");
+            start() {
+                this.isRecording = true;
+                state.currentMetrics.trajectory =;
+                // 记录初始位置 (归一化)
+                this.recordPoint(lastMouseX, lastMouseY); 
+            }
+
+            stop() {
+                this.isRecording = false;
+            }
+
+            // 节流记录函数
+            record(x, y) {
+                if (!this.isRecording) return;
+                const now = Date.now();
+                if (now - this.lastRecordTime > this.throttleTime) {
+                    this.recordPoint(x, y, now);
+                    this.lastRecordTime = now;
+                }
+            }
+
+            recordPoint(x, y, time = Date.now()) {
+                // 坐标归一化：保留4位小数，节省存储空间
+                // x_norm = x / window_width
+                const xNorm = parseFloat((x / window.innerWidth).toFixed(4));
+                const yNorm = parseFloat((y / window.innerHeight).toFixed(4));
+                
+                // 相对时间：相对于题目开始的时间 (ms)
+                const tRel = time - state.currentMetrics.startTime;
+
+                state.currentMetrics.trajectory.push();
             }
         }
 
-        // ------------------------- 业务逻辑 -------------------------
-
-        // 1. 开始考试
-        window.startExam = async function() {
-            const name = document.getElementById('input-name').value.trim();
-            const id = document.getElementById('input-id').value.trim();
-
-            if (!name || !id) {
-                alert("请填写完整的姓名和学号");
-                return;
+        // --- 工具类：交互监控器 (Interaction Monitor) ---
+        class InteractionMonitor {
+            constructor() {
+                this.hoverStartTime = null;
+                this.currentHoverTarget = null;
+                this.offTaskStartTime = null;
             }
 
-            state.studentInfo = { name, id };
-            
-            // UI 切换
-            document.getElementById('user-info-display').innerText = `${name} (${id})`;
-            document.getElementById('user-info-display').classList.remove('hidden');
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('loading-spinner').classList.remove('hidden'); // 临时显示loading
-            document.getElementById('quiz-view').classList.remove('hidden');
-
-            // 拉取题目
-            await loadQuestions();
-        };
-
-        // 2. 拉取题目
-        async function loadQuestions() {
-            if (!state.db) return;
-            try {
-                // 从 admin 录入的 question_bank 获取题目
-                const qRef = collection(state.db, 'artifacts', PROJECT_ID, 'public', 'data', 'question_bank');
-                // 这里按时间倒序或特定顺序获取
-                const qQuery = query(qRef, orderBy('timestamp', 'desc')); 
-                const snapshot = await getDocs(qQuery);
-                
-                state.questions = [];
-                snapshot.forEach(doc => {
-                    state.questions.push({ id: doc.id, ...doc.data() });
+            // 开始监听选项悬停
+            monitorOption(element, optionIndex) {
+                element.addEventListener('mouseenter', () => {
+                    this.hoverStartTime = Date.now();
+                    this.currentHoverTarget = optionIndex;
                 });
 
-                // 简单的洗牌算法 (可选，防止作弊)
-                // state.questions.sort(() => Math.random() - 0.5);
+                element.addEventListener('mouseleave', () => {
+                    if (this.hoverStartTime) {
+                        const duration = Date.now() - this.hoverStartTime;
+                        
+                        // 初始化数据结构
+                        if (!state.currentMetrics.hovers[optionIndex]) {
+                            state.currentMetrics.hovers[optionIndex] = { count: 0, totalDuration: 0 };
+                        }
+                        
+                        state.currentMetrics.hovers[optionIndex].count++;
+                        state.currentMetrics.hovers[optionIndex].totalDuration += duration;
+                        
+                        this.hoverStartTime = null;
+                        this.currentHoverTarget = null;
+                    }
+                });
+            }
 
-                if (state.questions.length === 0) {
-                    alert("题库暂无题目，请联系管理员");
-                    location.reload();
-                    return;
-                }
-
-                renderQuestion();
-            } catch (e) {
-                console.error("Load Questions Error", e);
-                alert("加载题目失败");
+            // 监听页面可见性（防作弊/专注度检测）
+            initVisibilityMonitor() {
+                document.addEventListener("visibilitychange", () => {
+                    if (document.hidden) {
+                        this.offTaskStartTime = Date.now();
+                        console.log("User switched tab/minimized");
+                    } else {
+                        if (this.offTaskStartTime) {
+                            const duration = Date.now() - this.offTaskStartTime;
+                            const tRel = this.offTaskStartTime - state.currentMetrics.startTime;
+                            
+                            state.currentMetrics.offTask.push({
+                                start_rel: tRel,
+                                duration: duration
+                            });
+                            this.offTaskStartTime = null;
+                        }
+                    }
+                });
+            }
+            
+            // 触摸屏检测（控制变量）
+            initTouchDetection() {
+                window.addEventListener('touchstart', () => {
+                    if(!state.studentInfo.hasTouchEvents) {
+                         state.studentInfo.hasTouchEvents = true;
+                         // 在控制台标记，或者在数据中标记“设备违规”
+                         console.warn("Touch event detected. Valid research requires a mouse.");
+                    }
+                });
             }
         }
 
-        // 3. 渲染当前题目
-        function renderQuestion() {
-            const q = state.questions[state.currentQIndex];
-            const total = state.questions.length;
+        const tracer = new TraceRecorder();
+        const monitor = new InteractionMonitor();
+        let lastMouseX = 0, lastMouseY = 0;
 
-            // 更新进度条
-            const progress = ((state.currentQIndex) / total) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
-            document.getElementById('progress-text').innerText = `题目 ${state.currentQIndex + 1} / ${total}`;
+        // 全局鼠标移动监听 (用于轨迹)
+        document.addEventListener('mousemove', (e) => {
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            tracer.record(e.clientX, e.clientY);
+        });
 
-            // 渲染内容
-            document.getElementById('question-text').innerText = q.text;
-            
-            const optsContainer = document.getElementById('options-container');
-            optsContainer.innerHTML = '';
-            
-            // 确保有 options 数组
-            const options = q.options || []; // 假设结构 {text: '...', id: 'A'}
-            
-            options.forEach((opt, idx) => {
-                const btn = document.createElement('div');
-                btn.className = `option-card w-full p-4 border border-slate-200 rounded-xl cursor-pointer flex items-center gap-3`;
-                btn.onclick = () => handleOptionSelect(idx, opt);
-                btn.innerHTML = `
-                    <div class="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 dot-indicator">
-                        <div class="w-3 h-3 rounded-full bg-blue-600 hidden"></div>
-                    </div>
-                    <span class="text-slate-700 font-medium">${opt}</span>
-                `;
-                optsContainer.appendChild(btn);
-            });
+        // 页面加载初始化
+        window.initApp = async () => {
+            try {
+                await signInAnonymously(auth);
+                state.user = auth.currentUser;
+                monitor.initVisibilityMonitor();
+                monitor.initTouchDetection();
+                
+                // 检查屏幕分辨率
+                checkEnvironment();
+            } catch (error) {
+                console.error("Auth error:", error);
+                alert("System init failed. Please check console.");
+            }
+        };
 
-            // 重置本题行为指标
-            state.currentMetrics = {
-                startTime: Date.now(), // 题目开始显示的时间
-                firstClickTime: null,  // 第一次点击选项的时间
-                changeCount: 0,        // 更改选项次数
-                selectedOption: null,  // 选中的文本
-                optionIndex: null      // 选中的索引
-            };
+        // --- 视图控制逻辑 ---
 
-            // 禁用提交按钮
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.className = "px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all";
+        // 1. 环境检查
+        function checkEnvironment() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const envStatus = document.getElementById('env-status');
+            const startBtn = document.getElementById('btn-env-pass');
+
+            let msg = `Detected Resolution: ${width}x${height}. `;
+            let passed = true;
+
+            if (width < 1024) {
+                msg += "⚠️ Screen width is too small. Please use a laptop or desktop computer.";
+                passed = false;
+            } else {
+                msg += "✅ Resolution OK.";
+            }
+
+            envStatus.innerText = msg;
+            if(passed) startBtn.disabled = false;
         }
 
-        // 4. 处理选项点击 (记录犹豫行为)
-        window.handleOptionSelect = function(idx, text) {
+        // 2. 登录与开始
+        window.startExam = () => {
+            const name = document.getElementById('input-name').value;
+            const id = document.getElementById('input-id').value;
+            if (!name ||!id) return alert("Please enter Name and Student ID.");
+
+            state.studentInfo = { name, id, deviceWidth: window.innerWidth, hasTouchEvents: false };
+            state.sessionStart = Date.now();
+
+            document.getElementById('setup-view').classList.add('hidden');
+            document.getElementById('quiz-view').classList.remove('hidden');
+            
+            renderQuestion();
+        };
+
+        // 3. 渲染题目
+        function renderQuestion() {
+            const qIndex = state.currentQuestionIndex;
+            const qData = state.questions[qIndex];
+
+            // 重置单题指标
+            state.currentMetrics = {
+                startTime: Date.now(),
+                firstClickTime: null,
+                changeCount: 0,
+                trajectory:,
+                hovers: {},
+                offTask:,
+                selectedOption: null
+            };
+            
+            // 开启轨迹记录
+            tracer.start();
+
+            // 更新 UI
+            document.getElementById('question-progress').innerText = `Question ${qIndex + 1} / ${state.questions.length}`;
+            document.getElementById('question-text').innerHTML = qData.text;
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'option-card p-4 border-2 border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors mb-3';
+                btn.innerText = opt;
+                btn.id = `opt-${idx}`;
+                
+                // 绑定点击事件 (核心犹豫指标：初次反应时、修改次数)
+                btn.onclick = () => handleOptionSelect(idx, opt);
+                
+                // 绑定悬停事件 (微观犹豫指标)
+                monitor.monitorOption(btn, idx);
+
+                optionsContainer.appendChild(btn);
+            });
+            
+            // 禁用提交按钮直到做出选择
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('submit-btn').classList.add('opacity-50');
+        }
+
+        // 4. 处理选项点击
+        function handleOptionSelect(idx, text) {
             const now = Date.now();
             
-            // 记录第一次点击时间 (Hesitation Metric: Reaction Time)
+            // 记录初次反应时间
             if (state.currentMetrics.firstClickTime === null) {
                 state.currentMetrics.firstClickTime = now - state.currentMetrics.startTime;
             } else {
-                // 如果已经点过，说明在修改答案 (Hesitation Metric: Cognitive Conflict)
-                if (state.currentMetrics.optionIndex !== idx) {
+                // 如果已经选过，且现在选了不一样的，增加“改变次数”
+                if (state.currentMetrics.selectedOption!== idx) {
                     state.currentMetrics.changeCount++;
                 }
             }
 
-            // 更新状态
-            state.currentMetrics.selectedOption = text;
-            state.currentMetrics.optionIndex = idx;
+            state.currentMetrics.selectedOption = idx;
+            state.currentMetrics.selectedText = text;
 
-            // UI 更新
-            const container = document.getElementById('options-container');
-            Array.from(container.children).forEach((child, i) => {
-                const dot = child.querySelector('.dot-indicator div');
-                if (i === idx) {
-                    child.classList.add('selected');
-                    child.classList.remove('border-slate-200');
-                    dot.classList.remove('hidden');
-                    child.querySelector('.dot-indicator').classList.add('border-blue-600');
-                } else {
-                    child.classList.remove('selected');
-                    child.classList.add('border-slate-200');
-                    dot.classList.add('hidden');
-                    child.querySelector('.dot-indicator').classList.remove('border-blue-600');
-                }
+            // UI 反馈
+            document.querySelectorAll('.option-card').forEach(d => {
+                d.classList.remove('border-blue-500', 'bg-blue-50');
+                d.classList.add('border-slate-200');
             });
+            const selectedBtn = document.getElementById(`opt-${idx}`);
+            selectedBtn.classList.remove('border-slate-200');
+            selectedBtn.classList.add('border-blue-500', 'bg-blue-50');
 
-            // 激活提交按钮
+            // 启用提交
             const submitBtn = document.getElementById('submit-btn');
             submitBtn.disabled = false;
-            submitBtn.className = "px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95";
-        };
+            submitBtn.classList.remove('opacity-50');
+        }
 
-        // 5. 点击提交本题 -> 弹出信心监测
-        window.preSubmitCheck = function() {
-            if (state.currentMetrics.optionIndex === null) return;
-            
-            // 显示 Modal
+        // 5. 提交前检查 -> 进入元认知监测
+        window.preSubmitCheck = () => {
+            tracer.stop(); // 停止记录轨迹，防止Modal上的移动污染题目数据
             document.getElementById('confidence-modal').classList.remove('hidden');
         };
 
-        // 6. 处理信心选择并进入下一题
-        window.handleConfidence = function(level) {
+        // 6. 处理置信度并完成本题
+        window.handleConfidence = (level) => {
             const now = Date.now();
-            const q = state.questions[state.currentQIndex];
+            const qData = state.questions[state.currentQuestionIndex];
 
-            // 构建单题完整数据包
-            const questionData = {
-                questionId: q.id,
-                questionText: q.text, // 冗余存便于分析
-                userAnswer: state.currentMetrics.selectedOption,
-                isCorrect: false, // 需后台比对，前端暂存
+            // 构建完整的数据包 (Data Packet)
+            const questionRecord = {
+                questionId: qData.id,
+                bloomLevel: qData.bloom,
+                irtDifficulty: qData.difficulty_b,
+                userAnswer: state.currentMetrics.selectedText,
                 
-                // 核心研究数据：犹豫行为指标
-                behaviorMetrics: {
-                    totalDuration: now - state.currentMetrics.startTime, // 总耗时
-                    timeToFirstClick: state.currentMetrics.firstClickTime, // 初始反应时
-                    answerChangeCount: state.currentMetrics.changeCount,   // 犹豫修改次数
-                    timestamp: now
+                // 核心行为指标
+                metrics: {
+                    totalTime: now - state.currentMetrics.startTime,
+                    firstClickTime: state.currentMetrics.firstClickTime,
+                    changeCount: state.currentMetrics.changeCount,
+                    confidence: level
                 },
                 
-                // 核心研究数据：元认知监测
-                metacognition: {
-                    confidenceLevel: level // 1-5
-                }
+                // 微观过程数据 (Micro-process Data)
+                processData: {
+                    trajectory: state.currentMetrics.trajectory, // Array of [x,y,t]
+                    hoverStats: state.currentMetrics.hovers,     // {opt: {count, duration}}
+                    offTaskEvents: state.currentMetrics.offTask  // 切屏记录
+                },
+                
+                timestamp: serverTimestamp()
             };
 
-            state.answersLog.push(questionData);
+            state.answersLog.push(questionRecord);
 
-            // 隐藏 Modal
+            // UI 重置
             document.getElementById('confidence-modal').classList.add('hidden');
+            state.currentQuestionIndex++;
 
-            // 逻辑分支：下一题 或 结束
-            if (state.currentQIndex < state.questions.length - 1) {
-                state.currentQIndex++;
+            if (state.currentQuestionIndex < state.questions.length) {
                 renderQuestion();
             } else {
                 finishExam();
             }
         };
 
-        // 7. 结束考试并统一上传
+        // 7. 结束考试并上传
         async function finishExam() {
             document.getElementById('quiz-view').classList.add('hidden');
-            document.getElementById('loading-spinner').classList.remove('hidden'); // 复用loading显示上传中
+            document.getElementById('loading-view').classList.remove('hidden');
 
-            // 构建总Session数据
-            const sessionData = {
+            const totalTime = Date.now() - state.sessionStart;
+            
+            const sessionPayload = {
                 student: state.studentInfo,
-                userId: state.user.uid,
-                startTime: state.answersLog[0]?.behaviorMetrics.timestamp - state.answersLog[0]?.behaviorMetrics.totalDuration,
-                endTime: Date.now(),
-                answers: state.answersLog,
-                // 统计摘要
-                summary: {
-                    totalQuestions: state.questions.length,
-                    avgConfidence: state.answersLog.reduce((acc, cur) => acc + cur.metacognition.confidenceLevel, 0) / state.questions.length
-                },
-                submittedAt: serverTimestamp()
+                sessionId: state.user.uid,
+                startTime: new Date(state.sessionStart).toISOString(),
+                endTime: new Date().toISOString(),
+                totalSessionDuration: totalTime,
+                answers: state.answersLog, // 包含所有轨迹的大型 JSON
+                userAgent: navigator.userAgent
             };
 
             try {
-                // 写入 Firestore: artifacts/{appId}/public/data/exam_results
-                const resRef = doc(collection(state.db, 'artifacts', PROJECT_ID, 'public', 'data', 'exam_results'));
-                await setDoc(resRef, sessionData);
-
-                // 显示成功页
-                document.getElementById('loading-spinner').classList.add('hidden');
-                document.getElementById('success-view').classList.remove('hidden');
+                // 写入 Firestore
+                await setDoc(doc(db, "exam_results", `${state.studentInfo.id}_${state.sessionStart}`), sessionPayload);
                 
-                // 填充统计
-                const durationMs = sessionData.endTime - sessionData.startTime;
-                const min = Math.floor(durationMs / 60000);
-                const sec = Math.floor((durationMs % 60000) / 1000);
-                document.getElementById('total-time-display').innerText = `${min}分 ${sec}秒`;
-                document.getElementById('total-count-display').innerText = `${state.questions.length} 题`;
-
+                document.getElementById('loading-view').classList.add('hidden');
+                document.getElementById('result-view').classList.remove('hidden');
             } catch (e) {
-                console.error("Upload Error", e);
-                alert("数据上传失败，请截图保存并联系管理员");
-                document.getElementById('loading-spinner').classList.add('hidden');
+                console.error("Upload failed", e);
+                alert("Upload failed. Please contact administrator.");
             }
         }
 
         // 启动
-        initApp();
-
-        // 暴露给 window 以便 HTML onclick 调用
-        window.handleOptionSelect = handleOptionSelect;
-        window.preSubmitCheck = preSubmitCheck;
-        window.handleConfidence = handleConfidence;
+        window.onload = initApp;
     </script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+       .option-card { transition: all 0.2s; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex items-center justify-center">
+
+    <div id="setup-view" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-4 text-slate-800">Research Assessment Setup</h1>
+        
+        <div class="mb-6 p-4 bg-yellow-50 text-yellow-800 text-sm rounded-lg border border-yellow-200">
+            <strong>⚠️ Control Requirements:</strong>
+            <ul class="list-disc ml-5 mt-2 space-y-1">
+                <li>Please use a <strong>physical mouse</strong> (no trackpads).</li>
+                <li>Maximize your browser to <strong>full screen</strong>.</li>
+                <li>Do not switch tabs during the test.</li>
+            </ul>
+        </div>
+
+        <div id="env-status" class="mb-4 text-xs text-slate-500 font-mono">Checking environment...</div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Student Name</label>
+                <input id="input-name" type="text" class="mt-1 block w-full border border-slate-300 rounded-md p-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Student ID</label>
+                <input id="input-id" type="text" class="mt-1 block w-full border border-slate-300 rounded-md p-2">
+            </div>
+            <button id="btn-env-pass" onclick="startExam()" disabled 
+                class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition">
+                Start Assessment
+            </button>
+        </div>
+    </div>
+
+    <div id="quiz-view" class="hidden w-full max-w-4xl h-full flex flex-col p-6">
+        <div class="flex justify-between items-center mb-6">
+            <span id="question-progress" class="text-slate-500 font-bold">Question 1</span>
+            <div class="text-xs text-slate-400">Tracking Active</div>
+        </div>
+
+        <div class="bg-white p-8 rounded-xl shadow-sm flex-grow overflow-y-auto">
+            <div id="question-text" class="text-lg text-slate-800 mb-8 leading-relaxed font-serif">
+                </div>
+
+            <div id="options-container" class="space-y-4">
+                </div>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+            <button id="submit-btn" onclick="preSubmitCheck()" disabled
+                class="bg-emerald-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition shadow-lg opacity-50">
+                Submit Answer
+            </button>
+        </div>
+    </div>
+
+    <div id="confidence-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full text-center">
+            <h3 class="text-xl font-bold mb-4">Metacognitive Monitoring</h3>
+            <p class="text-slate-600 mb-6">How confident are you in your answer?</p>
+            
+            <div class="grid grid-cols-5 gap-2 mb-2">
+                <button onclick="handleConfidence(1)" class="p-3 border rounded hover:bg-red-50 hover:border-red-500 transition">1<br><span class="text-xs">Guessing</span></button>
+                <button onclick="handleConfidence(2)" class="p-3 border rounded hover:bg-orange-50 hover:border-orange-500 transition">2<br><span class="text-xs">Unsure</span></button>
+                <button onclick="handleConfidence(3)" class="p-3 border rounded hover:bg-yellow-50 hover:border-yellow-500 transition">3<br><span class="text-xs">Neutral</span></button>
+                <button onclick="handleConfidence(4)" class="p-3 border rounded hover:bg-lime-50 hover:border-lime-500 transition">4<br><span class="text-xs">Likely</span></button>
+                <button onclick="handleConfidence(5)" class="p-3 border rounded hover:bg-green-50 hover:border-green-500 transition">5<br><span class="text-xs">Certain</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-view" class="hidden text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p class="text-slate-600">Uploading behavioral data...</p>
+    </div>
+
+    <div id="result-view" class="hidden bg-white p-8 rounded-xl shadow-lg text-center max-w-md">
+        <div class="text-5xl mb-4">✅</div>
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">Session Complete</h2>
+        <p class="text-slate-600">Thank you for your participation. Your data has been securely recorded for analysis.</p>
+        <p class="text-xs text-slate-400 mt-4">You may close this window.</p>
+    </div>
+
 </body>
 </html>
