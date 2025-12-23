@@ -18,6 +18,7 @@
         .option-card { transition: all 0.2s; }
         .option-card:hover { background-color: #f8fafc; border-color: #94a3b8; }
         .option-card.selected { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+        
         .confidence-btn { transition: transform 0.1s, box-shadow 0.1s; }
         .confidence-btn:active { transform: scale(0.95); }
     </style>
@@ -33,7 +34,9 @@
                 </div>
                 <h1 class="font-bold text-lg text-slate-700">在线测评</h1>
             </div>
-            <div id="user-info-display" class="hidden text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full"></div>
+            <div id="user-info-display" class="hidden text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                <!-- 动态填充用户信息 -->
+            </div>
         </div>
     </nav>
 
@@ -50,6 +53,7 @@
                     <h2 class="text-2xl font-bold text-slate-800">考生登录</h2>
                     <p class="text-slate-500 mt-2 text-sm">请输入您的信息开始答题，系统将自动记录您的答题过程数据用于研究。</p>
                 </div>
+                
                 <div class="space-y-4 text-left">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">姓名</label>
@@ -66,8 +70,9 @@
             </div>
         </div>
 
-        <!-- 阶段 B: 答题界面 -->
+        <!-- 阶段 B: 答题界面 (默认隐藏) -->
         <div id="quiz-view" class="hidden w-full animate-fade-in">
+            <!-- 进度条 -->
             <div class="mb-6">
                 <div class="flex justify-between text-xs text-slate-500 mb-2">
                     <span id="progress-text">题目 1 / --</span>
@@ -78,15 +83,23 @@
                 </div>
             </div>
 
+            <!-- 题目卡片 -->
             <div class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-slate-100 relative min-h-[400px] flex flex-col">
                 <div id="loading-spinner" class="absolute inset-0 bg-white flex items-center justify-center z-20 hidden">
                     <div class="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
                 </div>
+
                 <div class="flex-1">
                     <span class="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full mb-4">单选题</span>
-                    <h3 id="question-text" class="text-xl font-medium text-slate-800 leading-relaxed mb-6"></h3>
-                    <div id="options-container" class="space-y-3"></div>
+                    <h3 id="question-text" class="text-xl font-medium text-slate-800 leading-relaxed mb-6">
+                        <!-- 题目内容占位 -->
+                    </h3>
+                    
+                    <div id="options-container" class="space-y-3">
+                        <!-- 选项动态生成 -->
+                    </div>
                 </div>
+
                 <div class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
                     <button id="submit-btn" onclick="preSubmitCheck()" disabled class="px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all">
                         提交本题
@@ -95,7 +108,7 @@
             </div>
         </div>
 
-        <!-- 阶段 C: 提交成功 -->
+        <!-- 阶段 C: 提交成功 (默认隐藏) -->
         <div id="success-view" class="hidden w-full max-w-md mx-auto text-center animate-fade-in">
             <div class="bg-white p-10 rounded-2xl shadow-xl border border-slate-100">
                 <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
@@ -110,44 +123,75 @@
                 <button onclick="location.reload()" class="text-blue-600 hover:text-blue-700 font-medium">返回首页</button>
             </div>
         </div>
+
     </main>
 
-    <!-- 3. 信心监测弹窗 -->
+    <!-- 3. 信心监测弹窗 (Modal) -->
     <div id="confidence-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 md:p-8 animate-pop-up">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 md:p-8 animate-pop-up transform scale-100">
             <h3 class="text-xl font-bold text-slate-800 text-center mb-2">本次作答自我监测</h3>
             <p class="text-slate-500 text-center text-sm mb-8">请诚实评估：你对刚才所选答案的把握有多大？</p>
+            
             <div class="grid grid-cols-1 gap-3">
-                <button onclick="handleConfidence(5)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 bg-white">
-                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold mr-4">5</div>
-                    <div class="text-left"><div class="font-bold text-slate-800">非常有把握</div></div>
+                <!-- 5级量表 -->
+                <button onclick="handleConfidence(5)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-emerald-500 group-hover:text-white transition-colors">5</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-emerald-700">非常有把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-emerald-600/70">我确信答案是正确的</div>
+                    </div>
                 </button>
-                <button onclick="handleConfidence(4)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50 bg-white">
-                    <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold mr-4">4</div>
-                    <div class="text-left"><div class="font-bold text-slate-800">比较有把握</div></div>
+
+                <button onclick="handleConfidence(4)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-teal-500 group-hover:text-white transition-colors">4</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-teal-700">比较有把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-teal-600/70">大概率是正确的</div>
+                    </div>
                 </button>
-                <button onclick="handleConfidence(3)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-yellow-500 hover:bg-yellow-50 bg-white">
-                    <div class="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-lg font-bold mr-4">3</div>
-                    <div class="text-left"><div class="font-bold text-slate-800">一般 / 不确定</div></div>
+
+                <button onclick="handleConfidence(3)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-yellow-500 hover:bg-yellow-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-yellow-500 group-hover:text-white transition-colors">3</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-yellow-700">一般 / 不确定</div>
+                        <div class="text-xs text-slate-400 group-hover:text-yellow-600/70">我不确定，可能对也可能错</div>
+                    </div>
                 </button>
-                <button onclick="handleConfidence(2)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50 bg-white">
-                    <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg font-bold mr-4">2</div>
-                    <div class="text-left"><div class="font-bold text-slate-800">不太有把握</div></div>
+
+                <button onclick="handleConfidence(2)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">2</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-orange-700">不太有把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-orange-600/70">感觉可能是错的，但我只能选这个</div>
+                    </div>
                 </button>
-                <button onclick="handleConfidence(1)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-red-500 hover:bg-red-50 bg-white">
-                    <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-lg font-bold mr-4">1</div>
-                    <div class="text-left"><div class="font-bold text-slate-800">完全没把握</div></div>
+
+                <button onclick="handleConfidence(1)" class="confidence-btn group flex items-center p-4 rounded-xl border border-slate-200 hover:border-red-500 hover:bg-red-50 transition-all bg-white">
+                    <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-lg font-bold mr-4 group-hover:bg-red-500 group-hover:text-white transition-colors">1</div>
+                    <div class="text-left">
+                        <div class="font-bold text-slate-800 group-hover:text-red-700">完全没把握</div>
+                        <div class="text-xs text-slate-400 group-hover:text-red-600/70">我是瞎猜的</div>
+                    </div>
                 </button>
+            </div>
+            <div class="mt-4 text-center">
+                 <p class="text-xs text-slate-300">本题不可回退，点击选项自动进入下一题</p>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- 底部版权 -->
+    <footer class="py-4 text-center text-slate-300 text-xs">
+        &copy; 2025 Research System | Hesitation Behavior Analysis
+    </footer>
 
+    <!-- Firebase SDK (使用稳定的 10.14.1 版本) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getFirestore, collection, query, orderBy, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        // 配置信息
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
@@ -160,23 +204,32 @@
         
         const PROJECT_ID = "hesitation-research";
 
+        // 全局状态管理
         const state = {
             db: null,
             user: null,
             studentInfo: { name: '', id: '' },
             questions: [],
             currentQIndex: 0,
-            answersLog: [], 
+            answersLog: [], // 最终提交的数据包
+            
+            // 当前题目的临时行为数据
             currentMetrics: {
-                startTime: 0, firstClickTime: null, changeCount: 0, selectedOption: null, optionId: null
+                startTime: 0,
+                firstClickTime: null,
+                changeCount: 0,
+                selectedOption: null,
+                optionId: null
             }
         };
 
+        // 初始化
         async function initApp() {
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            state.db = getFirestore(app);
             try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                state.db = getFirestore(app);
+
                 const userCred = await signInAnonymously(auth);
                 state.user = userCred.user;
                 console.log("System Ready. User:", state.user.uid);
@@ -186,32 +239,55 @@
             }
         }
 
+        // ------------------------- 业务逻辑 -------------------------
+
+        // 1. 开始考试
         window.startExam = async function() {
             const name = document.getElementById('input-name').value.trim();
             const id = document.getElementById('input-id').value.trim();
-            if (!name || !id) { alert("请填写完整的姓名和学号"); return; }
+
+            if (!name || !id) {
+                alert("请填写完整的姓名和学号");
+                return;
+            }
+
             state.studentInfo = { name, id };
+            
+            // UI 切换
             document.getElementById('user-info-display').innerText = `${name} (${id})`;
             document.getElementById('user-info-display').classList.remove('hidden');
             document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('loading-spinner').classList.remove('hidden'); 
+            document.getElementById('loading-spinner').classList.remove('hidden'); // 临时显示loading
             document.getElementById('quiz-view').classList.remove('hidden');
+
+            // 拉取题目
             await loadQuestions();
         };
 
+        // 2. 拉取题目
         async function loadQuestions() {
             if (!state.db) return;
             try {
+                // 从 admin 录入的 question_bank 获取题目
                 const qRef = collection(state.db, 'artifacts', PROJECT_ID, 'public', 'data', 'question_bank');
+                // 这里按时间倒序或特定顺序获取
                 const qQuery = query(qRef, orderBy('timestamp', 'desc')); 
                 const snapshot = await getDocs(qQuery);
+                
                 state.questions = [];
-                snapshot.forEach(doc => { state.questions.push({ id: doc.id, ...doc.data() }); });
+                snapshot.forEach(doc => {
+                    state.questions.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 简单的洗牌算法 (可选，防止作弊)
+                // state.questions.sort(() => Math.random() - 0.5);
+
                 if (state.questions.length === 0) {
                     alert("题库暂无题目，请联系管理员");
                     location.reload();
                     return;
                 }
+
                 renderQuestion();
             } catch (e) {
                 console.error("Load Questions Error", e);
@@ -219,77 +295,134 @@
             }
         }
 
+        // 3. 渲染当前题目
         function renderQuestion() {
             const q = state.questions[state.currentQIndex];
             const total = state.questions.length;
-            document.getElementById('progress-bar').style.width = `${((state.currentQIndex) / total) * 100}%`;
+
+            // 更新进度条
+            const progress = ((state.currentQIndex) / total) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
             document.getElementById('progress-text').innerText = `题目 ${state.currentQIndex + 1} / ${total}`;
+
+            // 渲染内容
             document.getElementById('question-text').innerText = q.text;
-            document.getElementById('loading-spinner').classList.add('hidden');
             
             const optsContainer = document.getElementById('options-container');
             optsContainer.innerHTML = '';
-            const options = q.options || []; 
+            
+            // 确保有 options 数组
+            const options = q.options || []; // 假设结构 {text: '...', id: 'A'}
+            
             options.forEach((opt, idx) => {
                 const btn = document.createElement('div');
                 btn.className = `option-card w-full p-4 border border-slate-200 rounded-xl cursor-pointer flex items-center gap-3`;
                 btn.onclick = () => handleOptionSelect(idx, opt);
                 btn.innerHTML = `
-                    <div class="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 dot-indicator"><div class="w-3 h-3 rounded-full bg-blue-600 hidden"></div></div>
+                    <div class="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0 dot-indicator">
+                        <div class="w-3 h-3 rounded-full bg-blue-600 hidden"></div>
+                    </div>
                     <span class="text-slate-700 font-medium">${opt}</span>
                 `;
                 optsContainer.appendChild(btn);
             });
-            state.currentMetrics = { startTime: Date.now(), firstClickTime: null, changeCount: 0, selectedOption: null, optionIndex: null };
+
+            // 重置本题行为指标
+            state.currentMetrics = {
+                startTime: Date.now(), // 题目开始显示的时间
+                firstClickTime: null,  // 第一次点击选项的时间
+                changeCount: 0,        // 更改选项次数
+                selectedOption: null,  // 选中的文本
+                optionIndex: null      // 选中的索引
+            };
+
+            // 禁用提交按钮
             const submitBtn = document.getElementById('submit-btn');
             submitBtn.disabled = true;
             submitBtn.className = "px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all";
         }
 
+        // 4. 处理选项点击 (记录犹豫行为)
         window.handleOptionSelect = function(idx, text) {
             const now = Date.now();
+            
+            // 记录第一次点击时间 (Hesitation Metric: Reaction Time)
             if (state.currentMetrics.firstClickTime === null) {
                 state.currentMetrics.firstClickTime = now - state.currentMetrics.startTime;
             } else {
-                if (state.currentMetrics.optionIndex !== idx) state.currentMetrics.changeCount++;
+                // 如果已经点过，说明在修改答案 (Hesitation Metric: Cognitive Conflict)
+                if (state.currentMetrics.optionIndex !== idx) {
+                    state.currentMetrics.changeCount++;
+                }
             }
+
+            // 更新状态
             state.currentMetrics.selectedOption = text;
             state.currentMetrics.optionIndex = idx;
+
+            // UI 更新
             const container = document.getElementById('options-container');
             Array.from(container.children).forEach((child, i) => {
                 const dot = child.querySelector('.dot-indicator div');
                 if (i === idx) {
-                    child.classList.add('selected'); child.classList.remove('border-slate-200'); dot.classList.remove('hidden'); child.querySelector('.dot-indicator').classList.add('border-blue-600');
+                    child.classList.add('selected');
+                    child.classList.remove('border-slate-200');
+                    dot.classList.remove('hidden');
+                    child.querySelector('.dot-indicator').classList.add('border-blue-600');
                 } else {
-                    child.classList.remove('selected'); child.classList.add('border-slate-200'); dot.classList.add('hidden'); child.querySelector('.dot-indicator').classList.remove('border-blue-600');
+                    child.classList.remove('selected');
+                    child.classList.add('border-slate-200');
+                    dot.classList.add('hidden');
+                    child.querySelector('.dot-indicator').classList.remove('border-blue-600');
                 }
             });
+
+            // 激活提交按钮
             const submitBtn = document.getElementById('submit-btn');
             submitBtn.disabled = false;
             submitBtn.className = "px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95";
         };
 
+        // 5. 点击提交本题 -> 弹出信心监测
         window.preSubmitCheck = function() {
             if (state.currentMetrics.optionIndex === null) return;
+            
+            // 显示 Modal
             document.getElementById('confidence-modal').classList.remove('hidden');
         };
 
+        // 6. 处理信心选择并进入下一题
         window.handleConfidence = function(level) {
             const now = Date.now();
             const q = state.questions[state.currentQIndex];
-            state.answersLog.push({
+
+            // 构建单题完整数据包
+            const questionData = {
                 questionId: q.id,
-                questionText: q.text,
+                questionText: q.text, // 冗余存便于分析
                 userAnswer: state.currentMetrics.selectedOption,
+                isCorrect: false, // 需后台比对，前端暂存
+                
+                // 核心研究数据：犹豫行为指标
                 behaviorMetrics: {
-                    totalDuration: now - state.currentMetrics.startTime,
-                    timeToFirstClick: state.currentMetrics.firstClickTime,
-                    answerChangeCount: state.currentMetrics.changeCount,
+                    totalDuration: now - state.currentMetrics.startTime, // 总耗时
+                    timeToFirstClick: state.currentMetrics.firstClickTime, // 初始反应时
+                    answerChangeCount: state.currentMetrics.changeCount,   // 犹豫修改次数
                     timestamp: now
                 },
-                metacognition: { confidenceLevel: level }
-            });
+                
+                // 核心研究数据：元认知监测
+                metacognition: {
+                    confidenceLevel: level // 1-5
+                }
+            };
+
+            state.answersLog.push(questionData);
+
+            // 隐藏 Modal
             document.getElementById('confidence-modal').classList.add('hidden');
+
+            // 逻辑分支：下一题 或 结束
             if (state.currentQIndex < state.questions.length - 1) {
                 state.currentQIndex++;
                 renderQuestion();
@@ -298,35 +431,56 @@
             }
         };
 
+        // 7. 结束考试并统一上传
         async function finishExam() {
             document.getElementById('quiz-view').classList.add('hidden');
-            document.getElementById('loading-spinner').classList.remove('hidden');
+            document.getElementById('loading-spinner').classList.remove('hidden'); // 复用loading显示上传中
+
+            // 构建总Session数据
             const sessionData = {
                 student: state.studentInfo,
                 userId: state.user.uid,
                 startTime: state.answersLog[0]?.behaviorMetrics.timestamp - state.answersLog[0]?.behaviorMetrics.totalDuration,
                 endTime: Date.now(),
                 answers: state.answersLog,
+                // 统计摘要
                 summary: {
                     totalQuestions: state.questions.length,
                     avgConfidence: state.answersLog.reduce((acc, cur) => acc + cur.metacognition.confidenceLevel, 0) / state.questions.length
                 },
                 submittedAt: serverTimestamp()
             };
+
             try {
-                await setDoc(doc(collection(state.db, 'artifacts', PROJECT_ID, 'public', 'data', 'exam_results')), sessionData);
+                // 写入 Firestore: artifacts/{appId}/public/data/exam_results
+                const resRef = doc(collection(state.db, 'artifacts', PROJECT_ID, 'public', 'data', 'exam_results'));
+                await setDoc(resRef, sessionData);
+
+                // 显示成功页
                 document.getElementById('loading-spinner').classList.add('hidden');
                 document.getElementById('success-view').classList.remove('hidden');
+                
+                // 填充统计
                 const durationMs = sessionData.endTime - sessionData.startTime;
-                document.getElementById('total-time-display').innerText = `${Math.floor(durationMs / 60000)}分 ${Math.floor((durationMs % 60000) / 1000)}秒`;
+                const min = Math.floor(durationMs / 60000);
+                const sec = Math.floor((durationMs % 60000) / 1000);
+                document.getElementById('total-time-display').innerText = `${min}分 ${sec}秒`;
                 document.getElementById('total-count-display').innerText = `${state.questions.length} 题`;
+
             } catch (e) {
                 console.error("Upload Error", e);
-                alert("数据上传失败");
+                alert("数据上传失败，请截图保存并联系管理员");
                 document.getElementById('loading-spinner').classList.add('hidden');
             }
         }
+
+        // 启动
         initApp();
+
+        // 暴露给 window 以便 HTML onclick 调用
+        window.handleOptionSelect = handleOptionSelect;
+        window.preSubmitCheck = preSubmitCheck;
+        window.handleConfidence = handleConfidence;
     </script>
 </body>
 </html>
