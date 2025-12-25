@@ -22,7 +22,7 @@
 
     <style>
         /* 交互约束：禁止选中文本，防止复制 */
-       .unselectable {
+      .unselectable {
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
@@ -31,38 +31,38 @@
         }
 
         /* 阅读区排版优化 */
-       .prose-content {
+      .prose-content {
             font-family: 'Georgia', 'Cambria', serif;
             line-height: 1.8;
             font-size: 1.05rem;
             color: #1e293b;
         }
         
-       .prose-content p {
+      .prose-content p {
             margin-bottom: 1.5em;
         }
 
         /* 选项卡片样式 */
-       .option-card {
+      .option-card {
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-       .option-card:hover {
+      .option-card:hover {
             transform: translateX(4px);
         }
-       .option-card.selected {
+      .option-card.selected {
             background-color: #eff6ff;
             border-color: #3b82f6;
             box-shadow: 0 0 0 1px #3b82f6;
         }
 
         /* 模态框背景 */
-       .modal-overlay {
+      .modal-overlay {
             background-color: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
         }
         
         /* 状态呼吸灯 */
-       .status-dot {
+      .status-dot {
             height: 8px;
             width: 8px;
             background-color: #22c55e;
@@ -337,7 +337,7 @@
                 questionsSnapshot.forEach(doc => {
                     questions.push({
                         id: doc.id,
-                       ...doc.data()
+                      ...doc.data()
                     });
                 });
 
