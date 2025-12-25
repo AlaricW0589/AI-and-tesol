@@ -229,9 +229,7 @@
             const options = Array.from(optionInputs).map(input => input.value);
             
             // 修复了之前的逻辑判断符断行问题
-            if (!stem |
-
-| options.some(o =>!o.trim())) {
+            if (!stem || options.some(o =>!o.trim())) {
                 alert("请填写完整的题干和所有选项！");
                 return;
             }
@@ -323,9 +321,7 @@
             const pTitle = document.getElementById('p-title').value;
             const pContent = document.getElementById('p-content').value;
             
-            if (!pTitle ||!pContent |
-
-| stagedQuestions.length === 0) {
+            if (!pTitle ||!pContent || stagedQuestions.length === 0) {
                 alert("请填写文章标题、内容并至少添加一道题目！");
                 return;
             }
@@ -343,9 +339,7 @@
                     genre: document.getElementById('p-genre').value,
                     source: document.getElementById('p-source').value,
                     content_html: pContent,
-                    word_count: parseInt(document.getElementById('word-count').innerText) |
-
-| 0,
+                    word_count: parseInt(document.getElementById('word-count').innerText) || 0,
                     created_at: serverTimestamp(),
                     shadow_difficulty: parseFloat(document.getElementById('p-diff').value)
                 };
@@ -381,3 +375,4 @@
     </script>
 </body>
 </html>
+
