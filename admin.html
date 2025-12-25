@@ -25,7 +25,7 @@
        
        /* Toast 通知样式 */
        #toast-container {
-           position: fixed; top: 20px; right: 20px; z-index: 100;
+           position: fixed; top: 20px; right: 20px; z-index: 200;
            display: flex; flex-direction: column; gap: 10px;
        }
        .toast {
@@ -45,6 +45,16 @@
            display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px);
        }
        
+       /* Login Overlay (High Z-Index) */
+       #login-overlay {
+           position: fixed; inset: 0; background: #0f172a; z-index: 150;
+           display: flex; align-items: center; justify-content: center;
+           transition: opacity 0.5s ease-in-out;
+       }
+       #login-overlay.hidden-overlay {
+           opacity: 0; pointer-events: none;
+       }
+       
        /* Navigation Active State */
        .nav-item.active { background-color: #2563eb; color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
        .nav-item.inactive { color: #94a3b8; }
@@ -55,6 +65,45 @@
 
     <!-- Toast Container -->
     <div id="toast-container"></div>
+
+    <!-- Login Security Overlay -->
+    <div id="login-overlay">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-96 max-w-full text-center relative overflow-hidden">
+            <div class="h-1.5 absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-700 text-2xl">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">安全访问限制</h2>
+            <p class="text-slate-500 text-sm mb-6">请输入管理员凭证以解锁控制台</p>
+            
+            <form id="admin-login-form" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">管理员邮箱</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-envelope absolute left-3 top-3 text-slate-400 text-xs"></i>
+                        <input type="email" id="login-email" required value="moyihuafu@outlook.com"
+                            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">密码</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-key absolute left-3 top-3 text-slate-400 text-xs"></i>
+                        <input type="password" id="login-password" required
+                            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div id="login-error" class="hidden text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 flex items-center">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>
+                    <span id="login-error-text">验证失败</span>
+                </div>
+                <button type="submit" id="btn-login" class="w-full py-2.5 bg-slate-800 text-white font-bold rounded hover:bg-slate-900 transition shadow-lg transform active:scale-95">
+                    验证并进入 <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </form>
+            <p class="mt-6 text-[10px] text-slate-400">© 2025 Hesitation Research Lab</p>
+        </div>
+    </div>
 
     <!-- Confirmation Modal -->
     <div id="confirm-modal" class="modal-overlay">
@@ -86,7 +135,7 @@
     <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20 shrink-0">
         <div class="p-6 border-b border-slate-700">
             <h1 class="text-xl font-bold tracking-wider"><i class="fa-solid fa-layer-group mr-2"></i>CET 参数重构</h1>
-            <p class="text-xs text-slate-400 mt-2">v2.2.1 (Fixes)</p>
+            <p class="text-xs text-slate-400 mt-2">v2.3.0 (Secured)</p>
         </div>
         <nav class="flex-1 p-4 space-y-2">
             <div onclick="switchView('entry')" id="nav-entry" class="nav-item active block px-4 py-3 rounded-lg cursor-pointer transition duration-200">
@@ -99,8 +148,15 @@
                 <i class="fa-solid fa-chart-line mr-3"></i> 参数监控 (Monitor)
             </div>
         </nav>
-        <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
-            &copy; 2024 Research Lab
+        
+        <!-- Logout Button -->
+        <div class="p-4 border-t border-slate-700">
+            <button onclick="window.handleLogout()" class="w-full flex items-center justify-center px-4 py-2 bg-slate-800 hover:bg-red-900/50 text-slate-400 hover:text-red-400 rounded transition text-xs font-bold border border-slate-700 hover:border-red-900">
+                <i class="fa-solid fa-right-from-bracket mr-2"></i> 退出登录
+            </button>
+            <div class="mt-3 text-[10px] text-slate-600 text-center">
+                &copy; 2025 Research Lab
+            </div>
         </div>
     </aside>
 
@@ -112,7 +168,7 @@
                 <h2 class="text-lg font-semibold text-slate-700">阅读理解题组录入 (Passage-Based Testlet)</h2>
                 <div class="flex items-center space-x-4">
                     <span id="db-status" class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold border border-yellow-200">
-                        Connecting...
+                        Checking Auth...
                     </span>
                     <button onclick="window.resetAll()" class="text-sm text-red-500 hover:text-red-700 underline">
                         重置所有表单
@@ -332,7 +388,6 @@
                     <div class="text-xs text-slate-400 mt-1">Total received records</div>
                 </div>
                 
-                <!-- 修复: 之前丢失的卡片 (Avg Duration) -->
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Avg Duration</span>
@@ -351,7 +406,6 @@
                     <div class="text-xs text-slate-400 mt-1">Audit pass rate</div>
                 </div>
 
-                <!-- 修复: 之前丢失的卡片 (Export) -->
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Export</span>
@@ -391,7 +445,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        // 引入 signInWithEmailAndPassword 和 signOut
+        import { getAuth, signInWithCustomToken, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, doc, writeBatch, serverTimestamp, getDocs, query, orderBy, limit, deleteDoc, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // =========================================================================================
@@ -418,31 +473,93 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let currentUser = null;
 
-        // Auth
+        // =========================================================================================
+        // Auth Logic (Updated for Forced Login)
+        // =========================================================================================
         const initAuth = async () => {
             try {
+                // 如果环境提供了自定义 Token（例如从其他页面跳转过来携带的），尝试自动登录
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                } 
+                // 注意：移除了 signInAnonymously。现在我们要求显式登录。
             } catch (error) {
-                console.error("Auth Failed", error);
-                window.showToast("Auth Failed: " + error.message, "error");
+                console.error("Auth Init Failed", error);
             }
         };
+        
+        // 监听 Auth 状态变化来控制遮罩层显示
         onAuthStateChanged(auth, (user) => {
             const statusEl = document.getElementById('db-status');
+            const overlay = document.getElementById('login-overlay');
+            
             if (user) {
+                // 已登录：隐藏遮罩，进入系统
                 currentUser = user;
+                overlay.classList.add('hidden-overlay');
+                
                 statusEl.className = "px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200";
-                statusEl.innerText = "DB: Connected";
+                statusEl.innerText = `Admin: ${user.email || 'Verified'}`;
+                
+                // 加载初始数据
+                window.loadLibrary();
             } else {
+                // 未登录：显示遮罩，锁定系统
+                currentUser = null;
+                overlay.classList.remove('hidden-overlay');
+                
                 statusEl.className = "px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold border border-red-200";
-                statusEl.innerText = "Disconnected";
+                statusEl.innerText = "Locked";
             }
         });
+        
         initAuth();
+
+        // 登录处理函数
+        const loginForm = document.getElementById('admin-login-form');
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const btn = document.getElementById('btn-login');
+            const errorDiv = document.getElementById('login-error');
+            const errorText = document.getElementById('login-error-text');
+
+            // Reset UI
+            errorDiv.classList.add('hidden');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 验证中...';
+            btn.disabled = true;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // 成功后 onAuthStateChanged 会处理 UI 隐藏
+                btn.innerHTML = '验证通过';
+                window.showToast("欢迎回来，管理员", "success");
+            } catch (error) {
+                console.error("Login Failed", error);
+                btn.innerHTML = '验证并进入 <i class="fa-solid fa-arrow-right ml-1"></i>';
+                btn.disabled = false;
+                errorDiv.classList.remove('hidden');
+                
+                // 简单错误映射
+                if (error.code === 'auth/invalid-email') errorText.innerText = "邮箱格式错误";
+                else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') errorText.innerText = "账号或密码错误";
+                else errorText.innerText = "认证失败，请重试";
+            }
+        });
+
+        // 登出处理函数
+        window.handleLogout = async () => {
+            window.openConfirm("确定要退出管理控制台吗？", async () => {
+                try {
+                    await signOut(auth);
+                    window.showToast("已安全退出", "info");
+                    // 退出后 onAuthStateChanged 会重新显示遮罩层
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        };
 
         // Helper: Get Ref
         function getCollectionRef(name) {
@@ -609,6 +726,9 @@
         // PART 2: Library Logic (New)
         // =========================================================================================
         window.loadLibrary = async function() {
+            // Check auth before loading
+            if (!currentUser) return; 
+
             const listEl = document.getElementById('lib-passage-list');
             listEl.innerHTML = '<div class="text-center text-slate-400 py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>';
             
@@ -811,6 +931,9 @@
         // PART 3: Monitor Logic (Updated with Delete)
         // =========================================================================================
         window.refreshMonitor = async function() {
+            // Check auth
+            if(!currentUser) return; 
+
             const tbody = document.getElementById('monitor-table-body');
             tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Loading data...</td></tr>';
 
