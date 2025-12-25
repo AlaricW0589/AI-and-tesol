@@ -3,643 +3,334 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>研究控制台 (Hesitation Lab)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Chart.js 用于图表绘制 -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>CET Research Admin | 阴影参数录入系统</title>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+       .glass-panel { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.2); }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
 
-        // --- Firebase Config ---
+    <header class="bg-slate-900 text-white h-16 flex items-center justify-between px-6 shadow-md z-20">
+        <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-layer-group text-blue-400"></i>
+            <h1 class="text-lg font-bold tracking-wider">CET Parameter Reconstruction Console</h1>
+        </div>
+        <div class="text-xs text-slate-400">
+            Project ID: <span class="font-mono text-white">hesitation-research</span>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        
+        <div class="w-5/12 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                    <i class="fa-solid fa-book-open mr-2"></i> Step 1: 录入阅读语篇 (Passage)
+                </h2>
+                <span class="text-xs text-slate-400" id="word-count-badge">0 words</span>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Article Title / ID</label>
+                    <input type="text" id="p-title" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm" placeholder="e.g., CET6-2023-June-Passage1">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Genre</label>
+                        <select id="p-genre" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-sm">
+                            <option value="informational">说明文 (Informational)</option>
+                            <option value="argumentative">议论文 (Argumentative)</option>
+                            <option value="narrative">记叙文 (Narrative)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Source</label>
+                        <input type="text" id="p-source" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-sm" placeholder="e.g., The Economist">
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-blue-800">Passage Level Parameters</span>
+                        <i class="fa-solid fa-circle-question text-blue-400 text-xs" title="用于校准题组效应(Testlet Effect)"></i>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] text-blue-600 uppercase">Shadow Difficulty ($b$)</label>
+                            <input type="number" id="p-diff" step="0.1" value="0.0" class="w-full mt-1 p-1.5 text-sm border border-blue-200 rounded text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-blue-600 uppercase">Readability Score</label>
+                            <input type="number" id="p-readability" class="w-full mt-1 p-1.5 text-sm border border-blue-200 rounded text-center bg-white" placeholder="Auto" disabled>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col min-h-[300px]">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Content (HTML Support)</label>
+                    <textarea id="p-content" class="w-full flex-1 p-3 bg-slate-50 border border-slate-300 rounded font-serif leading-relaxed text-sm focus:border-blue-500 outline-none resize-none" placeholder="Paste article content here. Use <p> tags for paragraphs..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-7/12 bg-slate-50 flex flex-col relative">
+            
+            <div id="questions-list" class="flex-1 overflow-y-auto p-6 space-y-4 pb-48">
+                <div id="empty-state" class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
+                    <i class="fa-regular fa-clipboard text-4xl mb-2"></i>
+                    <p class="text-sm">No questions added yet.</p>
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] p-5 z-20">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                        <i class="fa-solid fa-list-check mr-2"></i> Step 2: 添加题目 (Add Question)
+                    </h2>
+                    <span class="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded font-mono">Current: Q<span id="next-q-num">1</span></span>
+                </div>
+
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="col-span-8 space-y-2">
+                        <input type="text" id="q-stem" class="w-full p-2 text-sm border border-slate-300 rounded focus:border-blue-500 outline-none" placeholder="输入题干 (Question Stem)...">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="flex items-center">
+                                <span class="w-6 text-center text-xs font-bold text-slate-400">A</span>
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option A">
+                            </div>
+                            <div class="flex items-center">
+                                <span class="w-6 text-center text-xs font-bold text-slate-400">B</span>
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option B">
+                            </div>
+                            <div class="flex items-center">
+                                <span class="w-6 text-center text-xs font-bold text-slate-400">C</span>
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option C">
+                            </div>
+                            <div class="flex items-center">
+                                <span class="w-6 text-center text-xs font-bold text-slate-400">D</span>
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option D">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-4 flex flex-col justify-between space-y-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[9px] text-slate-400">Correct</label>
+                                <select id="q-correct" class="w-full p-1 text-xs border rounded bg-slate-50">
+                                    <option value="0">A</option>
+                                    <option value="1">B</option>
+                                    <option value="2">C</option>
+                                    <option value="3">D</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] text-slate-400">Bloom</label>
+                                <select id="q-bloom" class="w-full p-1 text-xs border rounded bg-slate-50">
+                                    <option value="Analyze">Analyze</option>
+                                    <option value="Understand">Understand</option>
+                                    <option value="Evaluate">Evaluate</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
+                            <label class="block text-[9px] font-bold text-indigo-800 text-center mb-1">IRT / Shadow Init</label>
+                            <div class="flex justify-between gap-1">
+                                <input type="number" id="q-b" step="0.1" value="0.0" class="w-full text-center text-xs border-b border-indigo-200 bg-transparent p-0.5" title="Difficulty (b)">
+                                <input type="number" id="q-a" step="0.1" value="1.0" class="w-full text-center text-xs border-b border-indigo-200 bg-transparent p-0.5" title="Discrimination (a)">
+                                <input type="number" id="q-c" step="0.01" value="0.25" class="w-full text-center text-xs border-b border-indigo-200 bg-transparent p-0.5" title="Guessing (c)">
+                            </div>
+                        </div>
+
+                        <button onclick="stageQuestion()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-bold transition flex items-center justify-center">
+                            <i class="fa-solid fa-plus mr-2"></i> 暂存题目 (Stage)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white border-t border-slate-200 h-16 flex items-center justify-between px-8 z-30">
+        <div class="text-sm text-slate-500">
+            Total Items: <span id="total-count" class="font-bold text-slate-800">0</span>
+        </div>
+        <div class="flex space-x-4">
+            <button onclick="clearAll()" class="text-slate-400 hover:text-red-500 text-sm font-bold transition">Clear All</button>
+            <button onclick="uploadToFirebase()" id="btn-submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg shadow-blue-200 transition transform active:scale-95 flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-cloud-arrow-up mr-2"></i> 提交完整题组 (Upload Testlet)
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, doc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // *** USER PROVIDED CONFIG ***
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
             projectId: "hesitation-research",
             storageBucket: "hesitation-research.firebasestorage.app",
             messagingSenderId: "633469376688",
-            appId: "1:633469376688:web:dc26878c070a05a35b4375",
-            measurementId: "G-ZNZ14Q5R98"
+            appId: "1:633469376688:web:dc26878c070a05a35b4375"
         };
-        
-        const APP_ID = "hesitation-research";
 
-        let db, auth;
-        let allResultsData = []; 
-        let questionBank = {}; // { qId: qData } 用于快速查找题目元数据
-        let yerkesChart = null;
-        let bloomChart = null;
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-        async function init() {
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
+        // Local State
+        let stagedQuestions =;
 
-            try {
-                await signInAnonymously(auth);
-                console.log("Admin logged in");
-                
-                await loadQuestions(); // 先加载题目元数据
-                loadResultsData();     // 再加载结果并分析
-                
-                window.switchTab('tab-questions');
+        // --- Helper: Word Count ---
+        document.getElementById('p-content').addEventListener('input', (e) => {
+            const text = e.target.value.replace(/<[^>]*>?/gm, '');
+            const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+            document.getElementById('word-count-badge').textContent = `${count} words`;
+        });
 
-            } catch (e) {
-                alert("Auth failed: " + e.message);
-            }
-        }
-
-        window.switchTab = function(tabId) {
-            document.getElementById('view-questions').classList.add('hidden');
-            document.getElementById('view-analysis').classList.add('hidden');
+        // --- Logic: Stage Question ---
+        window.stageQuestion = function() {
+            const stem = document.getElementById('q-stem').value;
+            const opts = Array.from(document.querySelectorAll('.q-opt')).map(i => i.value);
             
-            document.getElementById('btn-tab-questions').classList.remove('text-blue-600', 'border-blue-600', 'bg-blue-50');
-            document.getElementById('btn-tab-analysis').classList.remove('text-blue-600', 'border-blue-600', 'bg-blue-50');
-            document.getElementById('btn-tab-questions').classList.add('text-slate-500', 'border-transparent');
-            document.getElementById('btn-tab-analysis').classList.add('text-slate-500', 'border-transparent');
+            if (!stem |
 
-            if (tabId === 'tab-questions') {
-                document.getElementById('view-questions').classList.remove('hidden');
-                document.getElementById('btn-tab-questions').classList.add('text-blue-600', 'border-blue-600', 'bg-blue-50');
-            } else {
-                document.getElementById('view-analysis').classList.remove('hidden');
-                document.getElementById('btn-tab-analysis').classList.add('text-blue-600', 'border-blue-600', 'bg-blue-50');
-                // 切换到分析页时刷新图表
-                if(allResultsData.length > 0) processAndRenderCharts();
-            }
-        }
-
-        // ==========================================
-        // 模块 1: 题库管理
-        // ==========================================
-        async function loadQuestions() {
-            const listEl = document.getElementById('question-list');
-            listEl.innerHTML = '<div class="text-center p-4 text-slate-400"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-            
-            try {
-                const qRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'questions');
-                const snapshot = await getDocs(qRef);
-                
-                questionBank = {}; // 重置缓存
-
-                if(snapshot.empty) {
-                    listEl.innerHTML = '<div class="text-center p-8 text-slate-400">暂无题目，请在右侧添加。</div>';
-                    return;
-                }
-
-                listEl.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    questionBank[doc.id] = d; // 存入缓存供分析使用
-
-                    const el = document.createElement('div');
-                    el.className = 'bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow mb-3 flex justify-between items-start group';
-                    el.innerHTML = `
-                        <div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">${d.metadata.subject}</span>
-                                <span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Bloom: ${d.metadata.bloom}</span>
-                                <span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">b=${d.metadata.difficulty_b}</span>
-                            </div>
-                            <p class="font-medium text-slate-800">${d.text}</p>
-                            <div class="mt-2 text-sm text-slate-500 grid grid-cols-2 gap-x-4">
-                                ${d.options.map((opt, i) => `<span class="${i == d.correctIndex ? 'text-green-600 font-bold' : ''}">${String.fromCharCode(65+i)}. ${opt}</span>`).join('')}
-                            </div>
-                        </div>
-                        <button onclick="window.deleteQ('${doc.id}')" class="text-slate-300 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    `;
-                    listEl.appendChild(el);
-                });
-                
-                document.getElementById('q-count').innerText = snapshot.size;
-
-            } catch (e) {
-                listEl.innerHTML = `<div class="text-red-500 p-4">Error: ${e.message}</div>`;
-            }
-        }
-
-        window.addQuestion = async function(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.innerText = "Adding...";
-            btn.disabled = true;
-
-            const text = document.getElementById('q-text').value;
-            const opt0 = document.getElementById('q-opt0').value;
-            const opt1 = document.getElementById('q-opt1').value;
-            const opt2 = document.getElementById('q-opt2').value;
-            const opt3 = document.getElementById('q-opt3').value;
-            const correct = document.getElementById('q-correct').value;
-            const subject = document.getElementById('q-subject').value;
-            const bloom = document.getElementById('q-bloom').value;
-            const diff = document.getElementById('q-diff').value;
-            const disc = document.getElementById('q-disc').value;
-
-            const newQ = {
-                text,
-                options: [opt0, opt1, opt2, opt3],
-                correctIndex: parseInt(correct),
-                metadata: { subject, bloom, difficulty_b: parseFloat(diff), discrimination_a: parseFloat(disc), addedAt: Date.now() }
-            };
-
-            try {
-                await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'questions'), newQ);
-                e.target.reset();
-                loadQuestions();
-                alert("题目添加成功！");
-            } catch (error) {
-                alert("Error: " + error.message);
-            } finally {
-                btn.innerText = "Add to Item Bank";
-                btn.disabled = false;
-            }
-        }
-
-        window.deleteQ = async function(id) {
-            if(!confirm("确定要删除这道题吗？")) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'questions', id));
-                loadQuestions();
-            } catch(e) { alert("删除失败: " + e.message); }
-        }
-
-        // ==========================================
-        // 模块 2: 数据分析与图表核心逻辑
-        // ==========================================
-        
-        async function loadResultsData() {
-            try {
-                const resultsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'exam_results');
-                const snapshot = await getDocs(resultsRef);
-                allResultsData = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
-                
-                updateDashboard(allResultsData);
-                renderStudentTable(allResultsData);
-                processAndRenderCharts(); // 渲染图表
-
-            } catch (e) {
-                console.error("Load Results Error", e);
-            }
-        }
-
-        function processAndRenderCharts() {
-            if (allResultsData.length === 0 || Object.keys(questionBank).length === 0) return;
-
-            // --- 数据聚合 ---
-            // 1. Bloom Stats: { 'Analyze': { totalTime: 0, count: 0 }, ... }
-            // 2. Question Stats (Yerkes): { qId: { diff: 0, totalTime: 0, count: 0, correctCount: 0 } }
-            
-            const bloomStats = {};
-            const itemStats = {};
-
-            // 初始化 itemStats
-            Object.keys(questionBank).forEach(qid => {
-                itemStats[qid] = {
-                    difficulty: questionBank[qid].metadata.difficulty_b,
-                    bloom: questionBank[qid].metadata.bloom,
-                    totalTime: 0,
-                    count: 0,
-                    correctCount: 0
-                };
-            });
-
-            // 遍历所有学生的答题记录
-            allResultsData.forEach(student => {
-                const answers = student.answers || {};
-                Object.keys(answers).forEach(qid => {
-                    const ans = answers[qid];
-                    const qMeta = questionBank[qid];
-                    
-                    if (qMeta && ans) {
-                        // Bloom Data
-                        const bloom = qMeta.metadata.bloom;
-                        if (!bloomStats[bloom]) bloomStats[bloom] = { totalTime: 0, count: 0 };
-                        bloomStats[bloom].totalTime += (ans.timeSpentMs || 0);
-                        bloomStats[bloom].count++;
-
-                        // Item Data
-                        if (itemStats[qid]) {
-                            itemStats[qid].totalTime += (ans.timeSpentMs || 0);
-                            itemStats[qid].count++;
-                            if (ans.isCorrect) itemStats[qid].correctCount++;
-                        }
-                    }
-                });
-            });
-
-            // --- 准备 Chart 1: Yerkes-Dodson (Scatter) ---
-            // Data Point: { x: Difficulty, y: AvgTime, r: CorrectRate(Visual) }
-            const yerkesData = Object.keys(itemStats).map(qid => {
-                const item = itemStats[qid];
-                if (item.count === 0) return null;
-                const avgTime = item.totalTime / item.count / 1000; // 秒
-                const correctRate = item.correctCount / item.count;
-                return {
-                    x: item.difficulty,
-                    y: avgTime,
-                    correctRate: correctRate, // 用于颜色
-                    qText: questionBank[qid].text.substring(0, 20) + "..."
-                };
-            }).filter(d => d !== null);
-
-            renderYerkesChart(yerkesData);
-
-            // --- 准备 Chart 2: Bloom (Bar) ---
-            const bloomOrder = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
-            const bloomLabels = [];
-            const bloomValues = [];
-
-            bloomOrder.forEach(label => {
-                if (bloomStats[label] && bloomStats[label].count > 0) {
-                    bloomLabels.push(label);
-                    // 平均时间 (秒)
-                    bloomValues.push((bloomStats[label].totalTime / bloomStats[label].count / 1000).toFixed(2));
-                }
-            });
-            // 补充未出现的 Bloom 层级（为了图表完整性，可选）
-            Object.keys(bloomStats).forEach(key => {
-                if (!bloomLabels.includes(key)) {
-                    bloomLabels.push(key);
-                    bloomValues.push((bloomStats[key].totalTime / bloomStats[key].count / 1000).toFixed(2));
-                }
-            });
-
-            renderBloomChart(bloomLabels, bloomValues);
-        }
-
-        // --- Chart.js 渲染函数 ---
-        
-        function renderYerkesChart(dataPoints) {
-            const ctx = document.getElementById('chart-yerkes').getContext('2d');
-            
-            if (yerkesChart) yerkesChart.destroy();
-
-            yerkesChart = new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [{
-                        label: 'Item Difficulty vs Hesitation',
-                        data: dataPoints,
-                        backgroundColor: (context) => {
-                            const val = context.raw?.correctRate;
-                            // 颜色映射：高正确率=绿色，低正确率=红色
-                            if (val === undefined) return 'rgba(54, 162, 235, 0.6)';
-                            const r = Math.floor(255 * (1 - val));
-                            const g = Math.floor(255 * val);
-                            return `rgba(${r}, ${g}, 100, 0.7)`;
-                        },
-                        pointRadius: 8,
-                        pointHoverRadius: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: { display: true, text: 'Yerkes-Dodson Law Analysis (Difficulty vs Hesitation)' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.raw.qText}: Diff ${context.raw.x}, Time ${context.raw.y.toFixed(1)}s, Acc ${(context.raw.correctRate*100).toFixed(0)}%`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: { display: true, text: 'Item Difficulty (b)' },
-                            min: -3, max: 3
-                        },
-                        y: {
-                            title: { display: true, text: 'Avg Hesitation Time (seconds)' },
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderBloomChart(labels, values) {
-            const ctx = document.getElementById('chart-bloom').getContext('2d');
-            
-            if (bloomChart) bloomChart.destroy();
-
-            bloomChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Avg Hesitation Time (s)',
-                        data: values,
-                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                        borderColor: 'rgb(37, 99, 235)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: { display: true, text: 'Hesitation by Bloom\'s Taxonomy' }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Seconds' }
-                        }
-                    }
-                }
-            });
-        }
-
-        function updateDashboard(data) {
-            document.getElementById('stat-total').innerText = data.length;
-            
-            let totalTime = 0;
-            let validCount = 0;
-            
-            data.forEach(d => {
-                if(d.meta && d.meta.startTime && d.meta.endTime) {
-                    totalTime += (d.meta.endTime - d.meta.startTime);
-                    validCount++;
-                }
-            });
-
-            const avgTimeSec = validCount > 0 ? Math.floor((totalTime / validCount) / 1000) : 0;
-            const min = Math.floor(avgTimeSec / 60);
-            const sec = avgTimeSec % 60;
-            
-            document.getElementById('stat-avg-time').innerText = `${min}m ${sec}s`;
-        }
-
-        function renderStudentTable(data) {
-            const tbody = document.getElementById('student-table-body');
-            tbody.innerHTML = '';
-
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">暂无答题数据</td></tr>`;
+| opts.some(o =>!o)) {
+                alert("Please fill in question stem and all options.");
                 return;
             }
 
-            data.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-
-            data.forEach(item => {
-                const demo = item.demographics || {};
-                const meta = item.meta || {};
-                
-                let statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Valid</span>';
-                
-                const durationSec = (meta.endTime - meta.startTime) / 1000;
-                const firstQKey = Object.keys(item.answers || {})[0];
-                const hasTrajectory = firstQKey && item.answers[firstQKey].trajectory && item.answers[firstQKey].trajectory.length > 0;
-
-                if (!hasTrajectory || durationSec < 10) {
-                    statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800"><i class="fas fa-exclamation-circle mr-1"></i> Check</span>';
+            const qData = {
+                stem: stem,
+                options: opts,
+                correct_index: parseInt(document.getElementById('q-correct').value),
+                bloom: document.getElementById('q-bloom').value,
+                // IRT Parameters
+                irt: {
+                    b: parseFloat(document.getElementById('q-b').value),
+                    a: parseFloat(document.getElementById('q-a').value),
+                    c: parseFloat(document.getElementById('q-c').value)
                 }
+            };
 
-                let dateStr = "N/A";
-                if(item.submittedAt) {
-                    dateStr = new Date(item.submittedAt.seconds * 1000).toLocaleString('zh-CN', { hour12: false });
-                }
+            stagedQuestions.push(qData);
+            renderList();
+            resetQForm();
+        };
 
-                const tr = document.createElement('tr');
-                tr.className = `border-b border-slate-100 hover:bg-slate-50 transition-colors`;
-                
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-600 font-bold">
-                        ${demo.id_code || item.docId || 'Unknown'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                        ${demo.name_en || '-'} <span class="text-xs text-slate-400">(${demo.gender}/${demo.age})</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                        ${dateStr}
-                    </td>
-                     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                        ${Math.floor(durationSec/60)}m ${Math.floor(durationSec%60)}s
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        ${statusBadge}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="window.downloadSingleUser('${item.firestoreId}')" class="text-blue-600 hover:text-blue-900 font-bold flex items-center justify-end gap-1 ml-auto">
-                            <i class="fa-solid fa-download"></i> JSON
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+        // --- Logic: Render List ---
+        function renderList() {
+            const container = document.getElementById('questions-list');
+            const emptyState = document.getElementById('empty-state');
+            document.getElementById('total-count').textContent = stagedQuestions.length;
+            document.getElementById('next-q-num').textContent = stagedQuestions.length + 1;
 
-        window.exportAllCSV = function() {
-            if(allResultsData.length === 0) { alert("无数据"); return; }
-            let csvContent = "data:text/csv;charset=utf-8,ID,Name,Gender,Age,Duration(s),SubmitTime,Is_Valid_Check,Total_Questions\n";
-
-            allResultsData.forEach(d => {
-                const demo = d.demographics || {};
-                const meta = d.meta || {};
-                const duration = ((meta.endTime - meta.startTime)/1000).toFixed(1);
-                let submitTime = d.submittedAt ? new Date(d.submittedAt.seconds*1000).toISOString() : "N/A";
-                const row = [d.docId || demo.id_code, demo.name_en, demo.gender, demo.age, duration, submitTime, "Check_Trajectory", meta.totalQuestions];
-                csvContent += row.join(",") + "\n";
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.href = encodedUri;
-            link.download = `All_Students_Summary_${new Date().toISOString().slice(0,10)}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        window.downloadSingleUser = function(firestoreId) {
-            const userDoc = allResultsData.find(d => d.firestoreId === firestoreId);
-            if (!userDoc) return;
-            const jsonStr = JSON.stringify(userDoc, null, 2);
-            const blob = new Blob([jsonStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${userDoc.demographics?.id_code || 'User'}_FullData.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
-
-        init();
-    </script>
-</head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
-    
-    <!-- Navbar -->
-    <nav class="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-20 shadow-sm h-16">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-blue-200 shadow-lg">R</div>
-            <div>
-                <h1 class="font-bold text-lg text-slate-800 leading-none">Hesitation Research</h1>
-                <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">Admin Console</p>
-            </div>
-        </div>
-        
-        <div class="flex bg-slate-100 p-1 rounded-lg">
-            <button id="btn-tab-questions" onclick="window.switchTab('tab-questions')" class="px-4 py-1.5 text-sm font-bold rounded-md border border-transparent transition-all">
-                <i class="fa-solid fa-list-check mr-2"></i>Item Bank
-            </button>
-            <button id="btn-tab-analysis" onclick="window.switchTab('tab-analysis')" class="px-4 py-1.5 text-sm font-bold rounded-md border border-transparent transition-all">
-                <i class="fa-solid fa-chart-line mr-2"></i>Analysis & Data
-            </button>
-        </div>
-
-        <a href="index.html" class="text-slate-400 hover:text-slate-600 text-sm font-bold transition-colors">
-            <i class="fa-solid fa-right-from-bracket mr-1"></i> Exit
-        </a>
-    </nav>
-
-    <div class="flex-1 max-w-7xl w-full mx-auto p-6">
-        
-        <!-- VIEW 1: Question Management -->
-        <div id="view-questions" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 space-y-4">
-                <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <h2 class="font-bold text-lg text-slate-700">Existing Items (<span id="q-count">0</span>)</h2>
-                    <button onclick="loadQuestions()" class="text-blue-600 text-sm hover:bg-blue-50 px-3 py-1 rounded transition-colors"><i class="fas fa-sync mr-1"></i> Refresh</button>
-                </div>
-                <div id="question-list" class="h-[calc(100vh-240px)] overflow-y-auto pr-2 custom-scrollbar pb-20"></div>
-            </div>
-
-            <div class="lg:col-span-1">
-                <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 sticky top-24">
-                    <h2 class="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
-                        <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm"><i class="fa-solid fa-plus"></i></div>
-                        Add New Item
-                    </h2>
-                    <form onsubmit="window.addQuestion(event)" class="space-y-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parameters</label>
-                            <div class="grid grid-cols-2 gap-2 mt-1">
-                                <select id="q-subject" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:border-blue-500 outline-none">
-                                    <option value="EnglishLit">English Lit</option>
-                                    <option value="ChineseLit">Chinese Lit</option>
-                                    <option value="Education">Education</option>
-                                </select>
-                                <select id="q-bloom" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:border-blue-500 outline-none">
-                                    <option value="Remember">Remember</option>
-                                    <option value="Understand">Understand</option>
-                                    <option value="Apply">Apply</option>
-                                    <option value="Analyze">Analyze</option>
-                                    <option value="Evaluate">Evaluate</option>
-                                    <option value="Create">Create</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div><input type="number" id="q-diff" step="0.1" placeholder="Diff (b)" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:border-blue-500 outline-none" required></div>
-                            <div><input type="number" id="q-disc" step="0.1" placeholder="Disc (a)" value="1.0" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:border-blue-500 outline-none" required></div>
-                        </div>
-                        <div><textarea id="q-text" rows="3" class="w-full mt-1 bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:border-blue-500 outline-none" placeholder="Question stem..." required></textarea></div>
-                        <div class="space-y-2 mt-1">
-                            <input id="q-opt0" type="text" placeholder="Option A" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm" required>
-                            <input id="q-opt1" type="text" placeholder="Option B" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm" required>
-                            <input id="q-opt2" type="text" placeholder="Option C" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm" required>
-                            <input id="q-opt3" type="text" placeholder="Option D" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm" required>
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correct Answer</label>
-                            <select id="q-correct" class="w-full mt-1 bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:border-blue-500 outline-none">
-                                <option value="0">Option A</option>
-                                <option value="1">Option B</option>
-                                <option value="2">Option C</option>
-                                <option value="3">Option D</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-md transition-all mt-4 active:scale-95">Add to Item Bank</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- VIEW 2: Analysis & Data -->
-        <div id="view-analysis" class="hidden space-y-6">
+            if (stagedQuestions.length > 0) emptyState.classList.add('hidden');
             
-            <!-- Dashboard Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
-                    <p class="text-blue-100 text-sm font-bold uppercase tracking-wider">Total Participants</p>
-                    <h3 id="stat-total" class="text-4xl font-extrabold mt-2">--</h3>
-                    <p class="text-sm text-blue-100 mt-2 opacity-80">Students submitted</p>
-                </div>
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <p class="text-slate-400 text-sm font-bold uppercase tracking-wider">Avg Duration</p>
-                    <h3 id="stat-avg-time" class="text-4xl font-extrabold text-slate-800 mt-2">--</h3>
-                    <p class="text-sm text-slate-400 mt-2">Time spent per session</p>
-                </div>
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-center items-start">
-                    <h3 class="font-bold text-lg text-slate-800 mb-2">Global Data Export</h3>
-                    <p class="text-sm text-slate-500 mb-4">Download summary CSV for all students.</p>
-                    <button onclick="window.exportAllCSV()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all w-full flex items-center justify-center">
-                        <i class="fa-solid fa-file-csv mr-2"></i> Export Summary CSV
-                    </button>
-                </div>
-            </div>
-
-            <!-- Charts Section (NEW) -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Yerkes-Dodson Chart -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="font-bold text-slate-700 mb-4">Yerkes-Dodson Law (Diff vs Hesitation)</h3>
-                    <div class="h-64 relative">
-                        <canvas id="chart-yerkes"></canvas>
+            container.innerHTML = '';
+            stagedQuestions.forEach((q, idx) => {
+                const el = document.createElement('div');
+                el.className = "bg-white p-4 rounded-lg shadow-sm border border-slate-200 relative group animate-fade-in";
+                el.innerHTML = `
+                    <div class="absolute top-3 right-3 cursor-pointer text-slate-300 hover:text-red-500" onclick="removeQ(${idx})">
+                        <i class="fa-solid fa-trash"></i>
                     </div>
-                    <p class="text-xs text-slate-400 mt-2 text-center">X: Item Difficulty | Y: Avg Hesitation (s) | Color: Accuracy (Green=High)</p>
-                </div>
-                <!-- Bloom Chart -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="font-bold text-slate-700 mb-4">Hesitation by Bloom's Taxonomy</h3>
-                    <div class="h-64 relative">
-                        <canvas id="chart-bloom"></canvas>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded">Q${idx+1}</span>
+                        <span class="bg-indigo-50 text-indigo-600 text-[10px] font-mono px-1.5 py-0.5 rounded">b:${q.irt.b} a:${q.irt.a}</span>
                     </div>
-                </div>
-            </div>
-
-            <!-- Student Table -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-800">Student Behavior Details</h3>
-                        <p class="text-sm text-slate-500">Audit individual sessions and trajectory quality.</p>
+                    <p class="text-sm font-semibold text-slate-800 mb-2 truncate">${q.stem}</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                        ${q.options.map((o, i) => 
+                            `<div class="${i === q.correct_index? 'text-green-600 font-bold' : ''}">${String.fromCharCode(65+i)}. ${o}</div>`
+                        ).join('')}
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="loadResultsData()" class="text-slate-400 hover:text-blue-600 p-2"><i class="fas fa-sync"></i></button>
-                    </div>
-                </div>
+                `;
+                container.appendChild(el);
+            });
+        }
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Student ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Name / Info</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Submitted</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Quality</th>
-                                <th class="relative px-6 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="student-table-body" class="bg-white divide-y divide-slate-100"></tbody>
-                    </table>
-                </div>
-            </div>
+        // --- Logic: Upload Batch ---
+        window.uploadToFirebase = async function() {
+            const btn = document.getElementById('btn-submit');
+            const pTitle = document.getElementById('p-title').value;
+            const pContent = document.getElementById('p-content').value;
 
-        </div>
+            if (!pTitle ||!pContent |
 
-    </div>
+| stagedQuestions.length === 0) {
+                alert("Please complete the passage and add at least one question.");
+                return;
+            }
 
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Uploading...';
+
+            try {
+                const batch = writeBatch(db);
+
+                // 1. Create Passage Ref
+                const passageRef = doc(collection(db, "reading_materials"));
+                batch.set(passageRef, {
+                    title: pTitle,
+                    content_html: pContent,
+                    genre: document.getElementById('p-genre').value,
+                    source: document.getElementById('p-source').value,
+                    shadow_difficulty: parseFloat(document.getElementById('p-diff').value),
+                    created_at: serverTimestamp()
+                });
+
+                // 2. Create Question Refs
+                stagedQuestions.forEach(q => {
+                    const qRef = doc(collection(db, "questions"));
+                    batch.set(qRef, {
+                        passage_id: passageRef.id, // Foreign Key
+                        stem: q.stem,
+                        options: q.options,
+                        correct_index: q.correct_index,
+                        cognitive_dimension: { bloom: q.bloom },
+                        irt_parameters: q.irt,
+                        // Initialize Shadow Params for Elo Engine
+                        shadow_parameters: {
+                            b_hat: q.irt.b, // Start with initial guess
+                            n_exposures: 0,
+                            last_updated: serverTimestamp()
+                        }
+                    });
+                });
+
+                // 3. Commit
+                await batch.commit();
+                alert("Success! Testlet uploaded.");
+                location.reload();
+
+            } catch (e) {
+                console.error(e);
+                alert("Error: " + e.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Retry Upload';
+            }
+        };
+
+        window.removeQ = (idx) => { stagedQuestions.splice(idx, 1); renderList(); };
+        window.clearAll = () => { if(confirm("Clear all?")) location.reload(); };
+        function resetQForm() {
+            document.getElementById('q-stem').value = '';
+            document.querySelectorAll('.q-opt').forEach(i => i.value = '');
+        }
+    </script>
 </body>
 </html>
