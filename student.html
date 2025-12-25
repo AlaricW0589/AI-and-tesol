@@ -79,10 +79,10 @@
         <section id="reading-aoi" class="w-7/12 p-8 lg:p-12 relative" data-aoi="reading">
             <div class="max-w-3xl mx-auto">
                 <h1 id="passage-title" class="text-2xl font-serif font-bold mb-6 text-slate-900 leading-tight">
-                    Wait for passage loading...
+                    <i class="fa-solid fa-circle-notch fa-spin text-blue-500 mr-2"></i>Loading Passage...
                 </h1>
                 <div id="passage-content" class="prose prose-slate prose-lg text-justify leading-loose text-slate-600 font-serif">
-                    </div>
+                </div>
             </div>
         </section>
 
@@ -93,19 +93,19 @@
 
             <div class="flex-1 p-8 overflow-y-auto">
                 <div class="mb-2">
-                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question <span id="q-index">1</span>/5</span>
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question <span id="q-index">1</span>/<span id="q-total">--</span></span>
                 </div>
                 
                 <div id="question-container" class="space-y-6">
-                    <h3 id="q-stem" class="text-lg font-medium text-slate-800">Loading Question...</h3>
+                    <h3 id="q-stem" class="text-lg font-medium text-slate-800">Preparing Exam Data...</h3>
                     
                     <div id="options-list" class="space-y-3">
-                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="p-4 border-t border-slate-100 bg-white flex justify-between items-center flex-none">
-                <button onclick="prevQuestion()" class="text-sm text-slate-400 hover:text-slate-600 font-medium px-4 py-2">
+                <button onclick="prevQuestion()" class="text-sm text-slate-400 hover:text-slate-600 font-medium px-4 py-2 opacity-50 cursor-not-allowed">
                     <i class="fa-solid fa-arrow-left mr-1"></i> Previous
                 </button>
                 <button id="btn-next" onclick="nextQuestion()" disabled class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-md shadow-blue-200 transition-all disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed">
@@ -117,83 +117,148 @@
     </main>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // *** Firebase 配置 (已自动填入您的配置) ***
-        const firebaseConfig = {
-            apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
-            authDomain: "hesitation-research.firebaseapp.com",
-            projectId: "hesitation-research",
-            storageBucket: "hesitation-research.firebasestorage.app",
-            messagingSenderId: "633469376688",
-            appId: "1:633469376688:web:dc26878c070a05a35b4375"
-        };
+        // *** Firebase 配置 ***
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) { console.error(e); }
+        }
+        // 如果环境变量未定义，回退到硬编码配置
+        if (!firebaseConfig) {
+             firebaseConfig = {
+                apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
+                authDomain: "hesitation-research.firebaseapp.com",
+                projectId: "hesitation-research",
+                storageBucket: "hesitation-research.firebasestorage.app",
+                messagingSenderId: "633469376688",
+                appId: "1:633469376688:web:dc26878c070a05a35b4375"
+            };
+        }
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // *** 全局状态管理 ***
         const state = {
             sessionId: "sess_" + Date.now(),
-            examData: null,          // 包含文章和题目的完整结构
+            examData: null,          // 将包含 { title, content, questions: [] }
             currentQIndex: 0,
             
             // 关键：时空分割状态
             currentPhase: 'reading', // 'reading' | 'answering'
-            hasEnteredAnswerZone: false, // 是否已经进入过答题区（用于触发首次决策时间）
+            hasEnteredAnswerZone: false, // 是否已经进入过答题区
             
             // 过程数据缓存
             logs: {
-                reading_logs:,    // 纯阅读阶段轨迹 (用于分析PAR)
-                answering_logs:,  // 答题阶段轨迹 (用于分析犹豫)
-                transitions:      // 区域切换事件 (Reading <-> Answering)
+                reading_logs: [],    // 纯阅读阶段轨迹
+                answering_logs: [],  // 答题阶段轨迹
+                transitions: []      // 区域切换事件
             },
             
             startTime: Date.now()
         };
 
-        // *** 1. 初始化逻辑 ***
-        async function init() {
-            // 模拟加载一篇CET-6真题数据 (实际应从 Firestore 读取)
-            // 这里为了演示直接构造数据，真实场景请替换为 await getDoc(...)
-            const mockPassage = {
-                title: "The Impact of Artificial Intelligence on Future Employment",
-                content: `<p>The rapid advancement of artificial intelligence (AI) has sparked intense debate regarding its potential impact on the job market. Proponents argue that AI will create new industries and opportunities, much like the Industrial Revolution did in the 19th century. They point to the growing demand for data scientists, AI ethicists, and machine learning engineers as evidence of this shift.</p>
-                          <p>However, critics express concern that AI automation will displace a significant portion of the workforce, particularly in sectors reliant on routine tasks. Manufacturing, transportation, and customer service are cited as industries most at risk. A report by the World Economic Forum predicts that while 85 million jobs may be displaced by 2025, 97 million new roles could emerge.</p>
-                          <p>The key challenge lies in the "reskilling" revolution. Workers displaced by automation must be provided with the training and education necessary to transition into these new roles. Governments and corporations face the daunting task of creating infrastructure to support this massive workforce transition.</p>
-                          <p>Ultimately, the net impact of AI on employment will depend not just on the technology itself, but on the policies and educational systems put in place to manage its integration into society.</p>`,
-                questions:,
-                        correct: 1
-                    },
-                    {
-                        id: "q2",
-                        stem: "Which sectors are mentioned as being most at risk of displacement?",
-                        options:,
-                        correct: 2
-                    }
-                ]
-            };
+        // *** Helper: 获取数据路径 ***
+        // 与 admin.html 保持一致的路径结构
+        function getCollectionRef(name) {
+            return collection(db, 'artifacts', appId, 'public', 'data', name);
+        }
 
-            state.examData = mockPassage;
-            renderInterface();
-            startTracking();
-            startTimer();
+        // *** 1. 初始化逻辑 (改为从 Firebase 拉取) ***
+        async function init() {
+            try {
+                // 1. 匿名登录 (确保有权限读取数据)
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                // 2. 拉取最新的一篇文章
+                console.log("Fetching passage...");
+                const passageQuery = query(
+                    getCollectionRef("reading_materials"), 
+                    orderBy("created_at", "desc"), 
+                    limit(1)
+                );
+                
+                const passageSnapshot = await getDocs(passageQuery);
+                
+                if (passageSnapshot.empty) {
+                    document.getElementById('passage-title').innerText = "暂无考试数据";
+                    document.getElementById('passage-content').innerText = "请先在管理后台录入文章和题目。";
+                    document.getElementById('q-stem').innerText = "No questions available.";
+                    return;
+                }
+
+                const passageDoc = passageSnapshot.docs[0];
+                const passageData = passageDoc.data();
+                const passageId = passageDoc.id;
+
+                // 3. 拉取该文章对应的题目
+                console.log("Fetching questions for passage:", passageId);
+                const questionsQuery = query(
+                    getCollectionRef("questions"),
+                    where("passage_id", "==", passageId)
+                );
+                
+                const questionsSnapshot = await getDocs(questionsQuery);
+                let questions = [];
+                questionsSnapshot.forEach(doc => {
+                    questions.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 简单的客户端排序 (如果题目有顺序字段最好，这里暂按创建时间或默认顺序)
+                questions.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+
+                if (questions.length === 0) {
+                    alert("该文章下暂无题目，请联系管理员。");
+                }
+
+                // 4. 组装数据
+                state.examData = {
+                    id: passageId,
+                    title: passageData.title,
+                    content: passageData.content_html,
+                    questions: questions
+                };
+
+                // 5. 渲染界面
+                renderInterface();
+                startTracking();
+                startTimer();
+
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                document.getElementById('passage-title').innerText = "加载失败";
+                document.getElementById('passage-content').innerText = "无法连接到数据库，请刷新重试。\n" + error.message;
+            }
         }
 
         function renderInterface() {
             // 渲染文章
             document.getElementById('passage-title').innerText = state.examData.title;
             document.getElementById('passage-content').innerHTML = state.examData.content;
+            
+            // 更新总题数显示
+            document.getElementById('q-total').innerText = state.examData.questions.length;
+            
             renderQuestion();
         }
 
         function renderQuestion() {
             const q = state.examData.questions[state.currentQIndex];
-            
+            if (!q) return;
+
             // 更新进度
             document.getElementById('q-index').innerText = state.currentQIndex + 1;
-            document.getElementById('progress-bar').style.width = `${((state.currentQIndex + 1) / state.examData.questions.length) * 100}%`;
+            const progress = ((state.currentQIndex + 1) / state.examData.questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
             
             // 渲染题干
             document.getElementById('q-stem').innerText = q.stem;
@@ -201,22 +266,32 @@
             // 渲染选项
             const list = document.getElementById('options-list');
             list.innerHTML = '';
-            q.options.forEach((opt, idx) => {
-                const div = document.createElement('div');
-                div.className = "option-card border border-slate-200 rounded-lg p-4 cursor-pointer flex items-start gap-3 hover:border-blue-400 group";
-                div.onclick = () => selectOption(div, idx);
-                
-                div.innerHTML = `
-                    <div class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors bg-white mt-0.5">
-                        ${String.fromCharCode(65 + idx)}
-                    </div>
-                    <div class="text-sm text-slate-700 leading-relaxed">${opt}</div>
-                `;
-                list.appendChild(div);
-            });
+            
+            // 确保 options 存在且是数组
+            if (Array.isArray(q.options)) {
+                q.options.forEach((opt, idx) => {
+                    const div = document.createElement('div');
+                    div.className = "option-card border border-slate-200 rounded-lg p-4 cursor-pointer flex items-start gap-3 hover:border-blue-400 group";
+                    div.onclick = () => selectOption(div, idx);
+                    
+                    div.innerHTML = `
+                        <div class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors bg-white mt-0.5">
+                            ${String.fromCharCode(65 + idx)}
+                        </div>
+                        <div class="text-sm text-slate-700 leading-relaxed">${opt}</div>
+                    `;
+                    list.appendChild(div);
+                });
+            } else {
+                list.innerHTML = '<div class="text-red-500">选项数据格式错误</div>';
+            }
 
             // 重置状态
             document.getElementById('btn-next').disabled = true;
+            document.getElementById('btn-next').innerHTML = 
+                state.currentQIndex === state.examData.questions.length - 1 
+                ? 'Submit Exam <i class="fa-solid fa-check ml-2"></i>' 
+                : 'Next Question <i class="fa-solid fa-arrow-right ml-2"></i>';
             
             // 重置本题的阶段标记 (新的一题，重新开始算阅读)
             state.hasEnteredAnswerZone = false;
@@ -230,10 +305,14 @@
             document.getElementById('btn-next').disabled = false;
             
             // 记录选择事件
-            logAction('select_option', { index: idx });
+            logAction('select_option', { index: idx, q_id: state.examData.questions[state.currentQIndex].id });
         };
 
         window.nextQuestion = async () => {
+            const btn = document.getElementById('btn-next');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...';
+
             // 提交本题数据 (上传到 Firestore)
             await flushLogs();
 
@@ -241,9 +320,28 @@
                 state.currentQIndex++;
                 renderQuestion();
             } else {
-                alert("Exam Finished!");
+                // 考试结束逻辑：提交最终数据并跳转或显示感谢
+                await submitFinalExamData();
+                alert("Exam Finished! Thank you for your participation.");
+                // 可选：跳转回首页
+                // window.location.href = 'index.html'; 
             }
         };
+        
+        // 提交最终汇总数据 (可选，这里仅作占位，目前 flushLogs 已经保存了每一题的过程)
+        async function submitFinalExamData() {
+             // 可以在这里创建一个 exam_submission 记录，汇总分数等
+             const submissionRef = getCollectionRef("exam_submissions");
+             await addDoc(submissionRef, {
+                 session_id: state.sessionId,
+                 user_id: auth.currentUser ? auth.currentUser.uid : 'anonymous',
+                 passage_id: state.examData.id,
+                 submitted_at: serverTimestamp(),
+                 duration_seconds: Math.floor((Date.now() - state.startTime) / 1000),
+                 // 可以添加更多汇总信息
+                 total_questions: state.examData.questions.length
+             });
+        }
 
         // *** 2. 核心：智能AOI追踪系统 ***
         function startTracking() {
@@ -262,7 +360,7 @@
                 if (questionZone.contains(e.target)) currentZone = 'answering';
 
                 // 2. 状态机：检测阶段切换
-                if (currentZone === 'answering' &&!state.hasEnteredAnswerZone) {
+                if (currentZone === 'answering' && !state.hasEnteredAnswerZone) {
                     // 首次进入答题区：标记为犹豫/决策分析的真正起点
                     state.hasEnteredAnswerZone = true;
                     state.currentPhase = 'answering';
@@ -273,7 +371,6 @@
                 } else if (currentZone === 'reading' && state.hasEnteredAnswerZone) {
                     // 如果已经开始答题却又回到阅读区 -> 这是“回视”(Regression)
                     // 我们不把阶段切回 reading，而是记录一次 look-back 事件
-                    // 这样不会打断 hesitation 的计算流
                 }
 
                 // 3. 记录轨迹数据
@@ -283,14 +380,14 @@
                         x: Math.round(e.clientX),
                         y: Math.round(e.clientY),
                         // 记录滚动位置，这对于分析“读到哪一行”至关重要
-                        scroll: currentZone === 'reading'? readingZone.scrollTop : questionZone.scrollTop
+                        scroll: currentZone === 'reading' ? readingZone.scrollTop : questionZone.scrollTop
                     };
 
-                    // 分流存储：解决您提出的“污染”问题
+                    // 分流存储
                     if (state.currentPhase === 'reading') {
-                        state.logs.reading_logs.push(point); // 这些是“伴读”数据
+                        state.logs.reading_logs.push(point); 
                     } else {
-                        state.logs.answering_logs.push(point); // 这些是“犹豫”数据
+                        state.logs.answering_logs.push(point); 
                     }
                     
                     lastTime = now;
@@ -325,15 +422,19 @@
             state.logs.transitions.push({
                 type: type,
                 t: Date.now() - state.startTime,
-               ...data
+                ...data
             });
         }
 
         async function flushLogs() {
+            if (!state.examData || !state.examData.questions[state.currentQIndex]) return;
+
             // 这里将数据打包上传 Firestore
             const packet = {
                 q_id: state.examData.questions[state.currentQIndex].id,
                 session_id: state.sessionId,
+                user_id: auth.currentUser ? auth.currentUser.uid : 'anonymous',
+                passage_id: state.examData.id,
                 // 分离上传，后端分析时极其方便
                 reading_trace: state.logs.reading_logs,
                 decision_trace: state.logs.answering_logs, 
@@ -342,12 +443,14 @@
             };
 
             try {
-                await addDoc(collection(db, "process_logs"), packet);
+                // 保存到 process_logs 集合
+                await addDoc(getCollectionRef("process_logs"), packet);
                 console.log("Logs uploaded:", packet);
+                
                 // 清空缓存
-                state.logs.reading_logs =;
-                state.logs.answering_logs =;
-                state.logs.transitions =;
+                state.logs.reading_logs = [];
+                state.logs.answering_logs = [];
+                state.logs.transitions = [];
             } catch (e) {
                 console.error("Upload failed", e);
             }
@@ -368,4 +471,3 @@
     </script>
 </body>
 </html>
-
