@@ -7,69 +7,27 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // 配置 Tailwind 以减少控制台警告
         tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        clifford: '#da373d',
-                    }
-                }
-            }
+            theme: { extend: { colors: { clifford: '#da373d', } } }
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* 交互约束：禁止选中文本，防止复制 */
       .unselectable {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            cursor: default;
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: default;
         }
-
-        /* 阅读区排版优化 */
       .prose-content {
-            font-family: 'Georgia', 'Cambria', serif;
-            line-height: 1.8;
-            font-size: 1.05rem;
-            color: #1e293b;
+            font-family: 'Georgia', 'Cambria', serif; line-height: 1.8; font-size: 1.05rem; color: #1e293b;
         }
-        
-      .prose-content p {
-            margin-bottom: 1.5em;
-        }
-
-        /* 选项卡片样式 */
-      .option-card {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-      .option-card:hover {
-            transform: translateX(4px);
-        }
-      .option-card.selected {
-            background-color: #eff6ff;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 1px #3b82f6;
-        }
-
-        /* 模态框背景 */
-      .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-        }
-        
-        /* 状态呼吸灯 */
+      .prose-content p { margin-bottom: 1.5em; }
+      .option-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+      .option-card:hover { transform: translateX(4px); }
+      .option-card.selected { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+      .modal-overlay { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
       .status-dot {
-            height: 8px;
-            width: 8px;
-            background-color: #22c55e;
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
-            animation: pulse 2s infinite;
+            height: 8px; width: 8px; background-color: #22c55e; border-radius: 50%; display: inline-block;
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2); animation: pulse 2s infinite;
         }
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
@@ -103,19 +61,16 @@
     </header>
 
     <main class="flex-1 flex overflow-hidden relative">
-        
         <section id="reading-aoi" data-aoi="reading" class="w-7/12 p-8 lg:p-12 overflow-y-auto relative scroll-smooth bg-[#fafafa]">
             <div class="max-w-3xl mx-auto bg-white shadow-sm p-10 min-h-full rounded-sm border border-slate-100">
                 <h1 id="passage-title" class="text-2xl font-bold text-slate-800 mb-6 font-serif">
                     <i class="fa-solid fa-circle-notch fa-spin text-blue-500 mr-2"></i>Loading...
                 </h1>
-                <article id="passage-content" class="prose-content text-slate-600">
-                </article>
+                <article id="passage-content" class="prose-content text-slate-600"></article>
             </div>
         </section>
 
         <section id="question-aoi" data-aoi="answering" class="w-5/12 bg-white flex flex-col border-l border-slate-200 relative shadow-xl z-20">
-            
             <div class="h-1 w-full bg-slate-100 flex-none">
                 <div id="progress-bar" class="h-full bg-blue-600 transition-all duration-500" style="width: 0%"></div>
             </div>
@@ -128,9 +83,7 @@
 
                 <div id="question-container" class="space-y-6">
                     <h3 id="q-stem" class="text-lg font-medium text-slate-800 leading-relaxed">正在准备试题数据...</h3>
-                    
-                    <div id="options-list" class="space-y-3">
-                    </div>
+                    <div id="options-list" class="space-y-3"></div>
                 </div>
             </div>
 
@@ -148,14 +101,12 @@
                 <h2 class="text-2xl font-bold">实验注册</h2>
                 <p class="text-blue-100 text-sm mt-1">Cognitive Hesitation Analysis - Participant Entry</p>
             </div>
-            
             <div class="p-8 overflow-y-auto">
                 <form id="reg-form" class="space-y-5">
                     <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">姓名 (拼音/英文)</label>
                             <input type="text" id="reg-name" placeholder="e.g. WangJie" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" required pattern="[A-Za-z\s]+">
-                            <p class="text-xs text-gray-400 mt-1">仅限英文字母，用于生成匿名ID</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
@@ -180,53 +131,32 @@
                             </select>
                         </div>
                     </div>
-
                     <hr class="border-gray-200">
-
                     <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm text-gray-600 space-y-3">
                         <h4 class="font-bold text-gray-800">知情同意与声明 (Informed Consent)</h4>
-                        
                         <label class="flex items-start gap-3 cursor-pointer select-none">
                             <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
-                            <span>我确认当前处于<strong>清醒状态</strong> (Alert & Awake)，无过度疲劳或酒精影响。</span>
+                            <span>我确认当前处于<strong>清醒状态</strong> (Alert & Awake)。</span>
                         </label>
-
                         <label class="flex items-start gap-3 cursor-pointer select-none">
                             <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
-                            <span>我知情并同意将我的答题过程数据（包括鼠标轨迹、停留时间等）用于<strong>学术研究</strong>。</span>
+                            <span>我同意将答题数据用于<strong>学术研究</strong>。</span>
                         </label>
-
                         <label class="flex items-start gap-3 cursor-pointer select-none">
                             <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
-                            <span>我了解系统会对我的身份进行<strong>匿名化处理</strong>，研究组承诺严格保护我的隐私数据。</span>
+                            <span>我了解系统会对我的身份进行<strong>匿名化处理</strong>。</span>
                         </label>
                     </div>
-
-                    <button type="submit" id="btn-start-exam" disabled class="w-full bg-gray-300 text-white py-3 rounded-lg font-bold transition duration-200 cursor-not-allowed">
-                        请勾选上述所有条款
-                    </button>
+                    <button type="submit" id="btn-start-exam" disabled class="w-full bg-gray-300 text-white py-3 rounded-lg font-bold transition duration-200 cursor-not-allowed">请勾选上述所有条款</button>
                 </form>
             </div>
         </div>
     </div>
 
     <script type="module">
-        // -----------------------------------------------------------
-        // 1. Firebase 配置与初始化 (v12.7.0 Modular)
-        // -----------------------------------------------------------
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            getDocs, 
-            query, 
-            orderBy, 
-            limit, 
-            where,
-            Timestamp 
-        } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, where, Timestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
@@ -238,164 +168,124 @@
             measurementId: "G-ZNZ14Q5R98"
         };
 
-        // 初始化 Firebase
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const db = getFirestore(app);
 
         // -----------------------------------------------------------
-        // 2. 全局状态管理 (Global State)
+        // 2. 全局状态管理
         // -----------------------------------------------------------
         const state = {
-            studentId: null,      // e.g., WangJie_M_21_1203
-            sessionId: null,      // e.g., sess_17100000_xxxxx
-            examData: null,       // Loaded from Firestore
-            currentQIndex: 0,     
+            studentId: null,
+            sessionId: null,
+            examData: null,
+            currentQIndex: 0,
             answers: {},
             
-            // 追踪相关
-            startTime: null,      // Session start time
-            questionStartTime: 0, // Current question start time
+            startTime: null,
             isTracking: false,
+            
+            // 修正：增加全局轨迹缓存 (解决数据丢失问题)
+            globalTrace: [], 
+
             logs: {
-                reading_logs: [], // Trajectory in reading area - 修复：添加 []
-                answering_logs: [],// Trajectory in answer area - 修复：添加 []
-                transitions: []   // Clicks, phase changes, scrolls - 修复：添加 []
+                reading_logs: [],
+                answering_logs: [],
+                transitions: []
             },
             
-            // 状态机
-            currentPhase: 'reading', // 'reading' | 'answering'
+            currentPhase: 'reading',
             hasEnteredAnswerZone: false
         };
 
         // -----------------------------------------------------------
-        // 3. 辅助函数：ID生成与UI控制
+        // 3. 辅助逻辑
         // -----------------------------------------------------------
-        
-        // 生成符合研究要求的ID: Name_Gender_Age_MMDD
         function generateStudentId(name, gender, age) {
             const date = new Date();
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
             const day = date.getDate().toString().padStart(2, '0');
-            // 移除名字中的空格，确保格式整洁
-            const cleanName = name.replace(/\s+/g, '');
-            return `${cleanName}_${gender}_${age}_${month}${day}`;
+            return `${name.replace(/\s+/g, '')}_${gender}_${age}_${month}${day}`;
         }
 
-        // 知情同意复选框逻辑
         const checkboxes = document.querySelectorAll('.consent-check');
         const startBtn = document.getElementById('btn-start-exam');
-
-        function checkConsent() {
-            // 检查是否所有复选框都被选中
+        checkboxes.forEach(cb => cb.addEventListener('change', () => {
             const allChecked = Array.from(checkboxes).every(c => c.checked);
-            if (allChecked) {
-                startBtn.disabled = false;
+            startBtn.disabled = !allChecked;
+            if(allChecked) {
                 startBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
                 startBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
                 startBtn.innerText = "同意条款并开始答题";
             } else {
-                startBtn.disabled = true;
                 startBtn.classList.add('bg-gray-300', 'cursor-not-allowed');
-                startBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 startBtn.innerText = "请勾选上述所有条款";
             }
-        }
-
-        // 绑定监听器
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', checkConsent);
-        });
+        }));
 
         // -----------------------------------------------------------
-        // 4. 数据加载逻辑 (Fetching from Firestore)
+        // 4. 数据加载
         // -----------------------------------------------------------
-        
         async function loadExamData() {
             try {
-                // 1. 获取最新的一篇阅读文章
+                // 读取根目录 reading_materials (匹配 Admin 修正后的路径)
                 const readingRef = collection(db, "reading_materials");
                 const qPassage = query(readingRef, orderBy("created_at", "desc"), limit(1));
                 const passageSnapshot = await getDocs(qPassage);
 
                 if (passageSnapshot.empty) {
                     alert("题库暂无数据，请先在后台录入。");
-                    document.getElementById('passage-title').innerText = "暂无考试数据";
                     return false;
                 }
 
                 const passageDoc = passageSnapshot.docs[0];
-                const passageId = passageDoc.id;
                 const passageData = passageDoc.data();
 
-                // 2. 获取该文章对应的所有题目
+                // 读取根目录 questions
                 const questionsRef = collection(db, "questions");
-                const qQuestions = query(questionsRef, where("passage_id", "==", passageId));
+                const qQuestions = query(questionsRef, where("passage_id", "==", passageDoc.id));
                 const questionsSnapshot = await getDocs(qQuestions);
 
-                let questions = []; // 修复：添加 []
-                questionsSnapshot.forEach(doc => {
-                    questions.push({
-                        id: doc.id,
-                      ...doc.data()
-                    });
-                });
-
-                // 按创建时间排序题目 (确保顺序正确)
-                questions.sort((a, b) => {
-                    // 修复：使用 || 处理未定义情况
-                    const tA = a.created_at?.seconds || 0;
-                    const tB = b.created_at?.seconds || 0;
-                    return tA - tB;
-                });
+                let questions = [];
+                questionsSnapshot.forEach(doc => questions.push({ id: doc.id, ...doc.data() }));
+                questions.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
 
                 state.examData = {
                     passage: {
-                        id: passageId,
-                        title: passageData.title || "Untitled Passage",
-        // ✅ 修正：优先读取 content_html，如果没有则尝试读取 content
-                        content: passageData.content_html || passageData.content || "<p>No content available.</p>"
+                        id: passageDoc.id,
+                        title: passageData.title || "Untitled",
+                        // 优先读取 content_html
+                        content: passageData.content_html || passageData.content || "<p>No content.</p>"
                     },
                     questions: questions
                 };
 
-                console.log("Exam Data Loaded:", state.examData);
                 renderInterface();
                 return true;
-
             } catch (error) {
-                console.error("Error loading exam data:", error);
-                document.getElementById('passage-title').innerText = "加载失败";
+                console.error("Load Error:", error);
                 document.getElementById('passage-content').innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
                 return false;
             }
         }
 
         // -----------------------------------------------------------
-        // 5. 核心：认知轨迹追踪引擎 (Tracking Engine)
+        // 5. 轨迹追踪
         // -----------------------------------------------------------
-        
         function startTracking() {
             state.isTracking = true;
-            state.questionStartTime = performance.now();
             let lastTime = 0;
-
             const readingZone = document.getElementById('reading-aoi');
             const questionZone = document.getElementById('question-aoi');
 
-            // 鼠标移动监听 (30Hz 节流)
             document.addEventListener('mousemove', (e) => {
                 if (!state.isTracking) return;
-
                 const now = performance.now();
-                if (now - lastTime < 33) return; // ~30fps
+                if (now - lastTime < 33) return; // ~30ms 采样
                 lastTime = now;
 
-                // 判定 AOI
                 let currentZone = 'neutral';
                 let scrollY = 0;
 
-                // 简单的碰撞检测
                 if (readingZone.contains(e.target)) {
                     currentZone = 'reading';
                     scrollY = readingZone.scrollTop;
@@ -404,204 +294,192 @@
                     scrollY = questionZone.scrollTop; 
                 }
 
-                // 状态机：首次进入答题区触发 Phase Switch
-                if (currentZone === 'answering' &&!state.hasEnteredAnswerZone) {
+                if (currentZone === 'answering' && !state.hasEnteredAnswerZone) {
                     state.hasEnteredAnswerZone = true;
                     state.currentPhase = 'answering';
                     updatePhaseDisplay();
                     logAction('phase_switch', { to: 'answering' });
                 }
 
-                // 记录数据点
-                const dataPoint = {
-                    t: Math.round(now - state.startTime), // 相对总开始时间
-                    x: Math.round(e.clientX),
-                    y: Math.round(e.clientY),
-                    scroll: scrollY
-                };
+                const t = Math.round(now - state.startTime);
+                const point = { t, x: Math.round(e.clientX), y: Math.round(e.clientY), scroll: scrollY, zone: currentZone };
 
-                if (state.currentPhase === 'reading') {
-                    state.logs.reading_logs.push(dataPoint);
-                } else {
-                    state.logs.answering_logs.push(dataPoint);
-                }
-            }, { passive: true });
+                // 1. 存入当前题目分段日志
+                if (state.currentPhase === 'reading') state.logs.reading_logs.push(point);
+                else state.logs.answering_logs.push(point);
 
-            // 滚动监听 (主要针对阅读区)
-            readingZone.addEventListener('scroll', (e) => {
-                if (state.isTracking && state.currentPhase === 'reading') {
-                    logAction('scroll', { top: readingZone.scrollTop, zone: 'reading' });
-                }
+                // 2. 修正：存入全局总日志 (供最后提交使用)
+                state.globalTrace.push(point);
+
             }, { passive: true });
         }
 
         function logAction(type, data) {
             state.logs.transitions.push({
                 t: Math.round(performance.now() - state.startTime),
-                type: type,
-                data: data
+                type, data
             });
         }
 
-        // 数据上传 (Flush to Firestore)
-        async function flushLogs(isFinal = false) {
+        async function flushLogs() {
+            // 上传分段日志 (Process Mining)
             const currentQ = state.examData.questions[state.currentQIndex];
-            
-            // 构建数据包
             const payload = {
                 session_id: state.sessionId,
                 student_id: state.studentId,
                 passage_id: state.examData.passage.id,
-                question_id: currentQ? currentQ.id : 'final_submit',
-                
-                // 轨迹数据
+                question_id: currentQ ? currentQ.id : 'final',
                 reading_trace: state.logs.reading_logs,
                 decision_trace: state.logs.answering_logs,
                 events: state.logs.transitions,
-                
-                // 元数据
                 timestamp: Timestamp.now(),
                 q_index: state.currentQIndex
             };
 
-            // 清空本地缓存，防止重复发送
-            // 修复：添加 [] 初始化
             state.logs.reading_logs = [];
             state.logs.answering_logs = [];
             state.logs.transitions = [];
-            
-            state.hasEnteredAnswerZone = false; // 重置 AOI 状态供下一题使用
-            state.currentPhase = 'reading';     // 重置为阅读阶段
+            state.hasEnteredAnswerZone = false;
+            state.currentPhase = 'reading';
 
-            try {
-                // 写入 Firestore 'process_logs' 集合
-                await addDoc(collection(db, "process_logs"), payload);
-                console.log(`Logs flushed for Q${state.currentQIndex + 1}`);
-            } catch (e) {
-                console.error("Failed to upload logs:", e);
-            }
+            try { await addDoc(collection(db, "process_logs"), payload); } 
+            catch (e) { console.error("Logs flush failed:", e); }
         }
 
         // -----------------------------------------------------------
-        // 6. UI 渲染与应用流程
+        // 6. 渲染与提交
         // -----------------------------------------------------------
-
         function renderInterface() {
-            // 渲染文章
             document.getElementById('passage-title').innerText = state.examData.passage.title;
             document.getElementById('passage-content').innerHTML = state.examData.passage.content;
-            
-            // 渲染第一题
             renderQuestion(0);
-            
             document.getElementById('q-total').innerText = state.examData.questions.length;
         }
 
         function renderQuestion(index) {
             const q = state.examData.questions[index];
-            const container = document.getElementById('options-list');
-            
             document.getElementById('q-index').innerText = index + 1;
             document.getElementById('q-stem').innerText = q.stem;
-            container.innerHTML = ''; // 清空旧选项
+            const container = document.getElementById('options-list');
+            container.innerHTML = '';
 
-            // 修复：定义标签数组
             const labels = ['A', 'B', 'C', 'D'];
-
-// ✅ 修正：判断是数组格式(新版Admin)还是独立字段格式(旧版)
-            let optionsArray = [];
-            if (q.options && Array.isArray(q.options)) {
-                optionsArray = q.options; // 使用数组
-            } else {
-                optionsArray = [q.option_a, q.option_b, q.option_c, q.option_d]; // 兼容旧数据
-            }
+            // 兼容数组格式或独立字段格式
+            let optionsArray = (q.options && Array.isArray(q.options)) 
+                ? q.options 
+                : [q.option_a, q.option_b, q.option_c, q.option_d];
 
             optionsArray.forEach((optText, idx) => {
-                if (!optText) return; 
-
+                if (!optText) return;
                 const div = document.createElement('div');
                 div.className = `option-card border border-slate-200 rounded-lg p-4 cursor-pointer flex items-start gap-3 hover:border-blue-400 group`;
-                // 使用闭包捕获 idx
                 div.onclick = (e) => selectOption(index, labels[idx], e.currentTarget);
-                
                 div.innerHTML = `
-                    <div class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors bg-white mt-0.5">
-                        ${labels[idx]}
-                    </div>
+                    <div class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors bg-white mt-0.5">${labels[idx]}</div>
                     <div class="text-sm text-slate-700 leading-relaxed">${optText}</div>
                 `;
                 container.appendChild(div);
             });
 
-            // 更新进度条
             const progress = ((index) / state.examData.questions.length) * 100;
             document.getElementById('progress-bar').style.width = `${progress}%`;
-
-            // 按钮文字
+            
             const btn = document.getElementById('btn-next');
-            if (index === state.examData.questions.length - 1) {
-                btn.innerHTML = '提交试卷 <i class="fa-solid fa-check"></i>';
-            } else {
-                btn.innerHTML = '下一题 <i class="fa-solid fa-arrow-right"></i>';
-            }
+            btn.innerHTML = (index === state.examData.questions.length - 1) 
+                ? '提交试卷 <i class="fa-solid fa-check"></i>' 
+                : '下一题 <i class="fa-solid fa-arrow-right"></i>';
         }
 
         function selectOption(qIndex, answer, cardElement) {
-            // 记录答案
             state.answers[qIndex] = answer;
-            
-            // UI 更新
-            const options = document.querySelectorAll('.option-card');
-            options.forEach(opt => opt.classList.remove('selected'));
+            document.querySelectorAll('.option-card').forEach(opt => opt.classList.remove('selected'));
             cardElement.classList.add('selected');
-
-            // 记录事件
             logAction('select_option', { q_idx: qIndex, ans: answer });
         }
 
         function updatePhaseDisplay() {
             const dot = document.getElementById('phase-indicator');
             const text = document.getElementById('system-status');
-            const debug = document.getElementById('aoi-debug');
-            
             if (state.currentPhase === 'reading') {
-                dot.style.backgroundColor = '#22c55e'; // Green
-                text.innerText = "阅读阶段";
-                debug.innerText = "AOI: Reading";
+                dot.style.backgroundColor = '#22c55e'; text.innerText = "阅读阶段";
             } else {
-                dot.style.backgroundColor = '#eab308'; // Yellow/Orange
-                text.innerText = "答题决策";
-                debug.innerText = "AOI: Answering";
+                dot.style.backgroundColor = '#eab308'; text.innerText = "答题决策";
             }
         }
 
         // -----------------------------------------------------------
-        // 7. 事件绑定与启动
+        // 7. 提交与评分核心逻辑 (修正重点)
         // -----------------------------------------------------------
+        async function submitFinalExamData() {
+            if(!confirm("确认提交试卷吗？")) return;
 
-        // 表单提交：生成ID并开始
+            // 1. 计算评分 (前端简单评分)
+            let score = 0;
+            let gradingDetails = [];
+            const labels = ['A', 'B', 'C', 'D'];
+
+            state.examData.questions.forEach((q, idx) => {
+                const userAns = state.answers[idx];
+                // 题目中 correct_index 是 0/1/2/3，转为 ABCD
+                const correctAnsChar = labels[q.correct_index]; 
+                const isCorrect = (userAns === correctAnsChar);
+                if(isCorrect) score++;
+
+                gradingDetails.push({
+                    q_id: q.id,
+                    user_answer: userAns || null,
+                    correct_answer: correctAnsChar,
+                    is_correct: isCorrect
+                });
+            });
+
+            // 2. 构建最终数据包
+            // 修正：包含 mouse_trace (全局) 和 grading (评分)
+            const finalPayload = {
+                session_id: state.sessionId,
+                student_id: state.studentId,
+                answers: state.answers, // 原始答案
+                
+                // 新增：Admin端期待的详细数据
+                mouse_trace: state.globalTrace, // 完整的30ms采样轨迹
+                grading: {
+                    total_score: score,
+                    total_questions: state.examData.questions.length,
+                    details: gradingDetails
+                },
+                
+                finished_at: Timestamp.now(),
+                status: "completed",
+                duration_seconds: (performance.now() - state.startTime) / 1000
+            };
+
+            try {
+                await addDoc(collection(db, "exam_submissions"), finalPayload);
+                alert(`考试结束！\n您的得分: ${score}/${state.examData.questions.length}`);
+                window.location.reload();
+            } catch (e) {
+                alert("上传失败: " + e.message);
+            }
+        }
+
+        // -----------------------------------------------------------
+        // 启动逻辑
+        // -----------------------------------------------------------
         document.getElementById('reg-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const name = document.getElementById('reg-name').value;
             const gender = document.getElementById('reg-gender').value;
             const age = document.getElementById('reg-age').value;
             const grade = document.getElementById('reg-grade').value;
 
-            // 1. 生成 ID
             state.studentId = generateStudentId(name, gender, age);
             state.sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-            state.startTime = performance.now(); // 记录整个 Session 的基准时间
+            state.startTime = performance.now();
 
             document.getElementById('display-student-id').innerText = state.studentId;
             document.getElementById('system-status').innerText = "系统就绪";
+            document.getElementById('btn-start-exam').innerText = "正在初始化...";
 
-            // 按钮变更为加载状态
-            const btn = document.getElementById('btn-start-exam');
-            btn.innerText = "正在初始化...";
-            btn.disabled = true;
-
-            // 2. 上传用户元数据
             try {
                 await addDoc(collection(db, "exam_submissions"), {
                     session_id: state.sessionId,
@@ -610,71 +488,34 @@
                     started_at: Timestamp.now(),
                     status: "started"
                 });
-            } catch(err) {
-                console.warn("Meta upload failed, proceeding anyway", err);
-            }
+            } catch(err) { console.warn("Meta upload failed", err); }
 
-            // 3. 加载数据
             const loaded = await loadExamData();
             if (loaded) {
                 document.getElementById('registration-modal').classList.add('hidden');
                 document.getElementById('btn-next').classList.remove('hidden');
-                startTracking(); // 启动监听
-                startTimer();
+                startTracking();
+                setInterval(() => {
+                    const s = Math.floor((performance.now() - state.startTime)/1000);
+                    const m = Math.floor(s/60).toString().padStart(2,'0');
+                    const sec = (s%60).toString().padStart(2,'0');
+                    document.getElementById('timer').innerText = `${m}:${sec}`;
+                }, 1000);
             } else {
-                btn.innerText = "初始化失败，请重试";
-                btn.disabled = false;
+                document.getElementById('btn-start-exam').innerText = "初始化失败";
             }
         });
 
-        // 下一题 / 提交
         document.getElementById('btn-next').addEventListener('click', async () => {
-            // 先上传当前题目的数据
             await flushLogs();
-
             if (state.currentQIndex < state.examData.questions.length - 1) {
                 state.currentQIndex++;
                 renderQuestion(state.currentQIndex);
-                // 滚动回答题区顶部
                 document.getElementById('question-aoi').scrollTop = 0;
             } else {
                 submitFinalExamData();
             }
         });
-
-        // 最终提交
-        async function submitFinalExamData() {
-            if(!confirm("确认提交试卷吗？提交后不可修改。")) return;
-
-            // 上传最终答案汇总
-            try {
-                await addDoc(collection(db, "exam_submissions"), {
-                    session_id: state.sessionId,
-                    student_id: state.studentId,
-                    answers: state.answers,
-                    finished_at: Timestamp.now(),
-                    status: "completed"
-                });
-                alert("考试结束！数据已成功上传。感谢您的参与。");
-                window.location.reload(); // 或跳转到结束页
-            } catch (e) {
-                alert("上传失败，请联系监考老师。");
-                console.error(e);
-            }
-        }
-
-        // 简单的计时器
-        function startTimer() {
-            let seconds = 0;
-            setInterval(() => {
-                seconds++;
-                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-                const s = (seconds % 60).toString().padStart(2, '0');
-                document.getElementById('timer').innerText = `${m}:${s}`;
-            }, 1000);
-        }
-
     </script>
 </body>
 </html>
-
