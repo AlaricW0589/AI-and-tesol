@@ -352,9 +352,9 @@
                 state.examData = {
                     passage: {
                         id: passageId,
-                        // 修复：合并被截断的 || 运算符
                         title: passageData.title || "Untitled Passage",
-                        content: passageData.content || "<p>No content available.</p>"
+        // ✅ 修正：优先读取 content_html，如果没有则尝试读取 content
+                        content: passageData.content_html || passageData.content || "<p>No content available.</p>"
                     },
                     questions: questions
                 };
@@ -507,9 +507,14 @@
 
             // 修复：定义标签数组
             const labels = ['A', 'B', 'C', 'D'];
-            
-            // 尝试构建选项数组 (兼容 admin 端可能的数据结构)
-            const optionsArray = [q.option_a, q.option_b, q.option_c, q.option_d];
+
+// ✅ 修正：判断是数组格式(新版Admin)还是独立字段格式(旧版)
+            let optionsArray = [];
+            if (q.options && Array.isArray(q.options)) {
+                optionsArray = q.options; // 使用数组
+            } else {
+                optionsArray = [q.option_a, q.option_b, q.option_c, q.option_d]; // 兼容旧数据
+            }
 
             optionsArray.forEach((optText, idx) => {
                 if (!optText) return; 
@@ -672,3 +677,4 @@
     </script>
 </body>
 </html>
+
