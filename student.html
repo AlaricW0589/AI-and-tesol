@@ -2,461 +2,355 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>在线测评系统 - 学生端</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CET Online Assessment | 沉浸式阅读测评</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 禁用文本选择，防止复制干扰实验数据 */
+        body { user-select: none; }
+        
+        /* 自定义阅读区的滚动条，提升沉浸感 */
+       .passage-scroll::-webkit-scrollbar { width: 8px; }
+       .passage-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+       .passage-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+       .passage-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        // --- 配置区域 ---
+        /* 选中态样式 */
+       .option-card.selected {
+            border-color: #2563eb;
+            background-color: #eff6ff;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+        }
+
+        /* 加载动画 */
+       .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            width: 24px;
+            height: 24px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden font-sans text-slate-800">
+
+    <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-6 z-20 shadow-sm flex-none">
+        <div class="flex items-center space-x-4">
+            <span class="font-bold text-slate-700 tracking-wide">CET-6 Reading Comprehension</span>
+            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-mono">Section C</span>
+        </div>
+        
+        <div class="flex items-center space-x-6">
+            <div class="text-sm text-gray-500">
+                Question <span id="current-q-num" class="font-bold text-gray-900 text-lg">1</span> / <span id="total-q-num">--</span>
+            </div>
+            <div class="flex items-center space-x-2 px-3 py-1 bg-red-50 rounded-full border border-red-100">
+                <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span class="text-xs text-red-600 font-bold uppercase">REC</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="exam-interface" class="flex-1 flex overflow-hidden relative opacity-0 transition-opacity duration-500">
+        
+        <section id="reading-pane" class="w-1/2 h-full overflow-y-auto passage-scroll bg-white border-r border-gray-200 p-8 lg:p-12 shadow-[inset_-10px_0_20px_-10px_rgba(0,0,0,0.05)] relative" region-id="passage">
+            <div class="max-w-prose mx-auto">
+                <div class="mb-6 pb-4 border-b border-gray-100">
+                    <span id="passage-genre" class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Article Genre</span>
+                    <h1 id="passage-title" class="text-2xl font-serif font-bold text-slate-800 leading-tight">Loading Passage...</h1>
+                </div>
+                
+                <article id="passage-content" class="prose prose-slate prose-lg text-slate-600 leading-loose font-serif">
+                    </article>
+            </div>
+        </section>
+
+        <section id="item-pane" class="w-1/2 h-full bg-gray-50 flex flex-col relative" region-id="item">
+            
+            <div class="flex-1 overflow-y-auto p-8 lg:p-12 flex flex-col justify-center">
+                <div class="max-w-lg mx-auto w-full">
+                    
+                    <div id="question-card" class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 transition-all duration-300">
+                        <div class="mb-6">
+                            <span class="text-xs font-bold text-blue-600 mb-2 block uppercase">Multiple Choice</span>
+                            <h2 id="q-stem" class="text-lg font-medium text-gray-900 leading-relaxed">
+                                Loading Question...
+                            </h2>
+                        </div>
+
+                        <div id="options-list" class="space-y-3">
+                            </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="bg-white border-t border-gray-200 p-4 flex justify-end items-center flex-none z-10">
+                <button id="btn-next" onclick="nextQuestion()" disabled class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                    <span>Next Question</span>
+                    <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="loading-screen" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center space-y-4">
+        <div class="loader"></div>
+        <p class="text-gray-500 font-mono text-sm">Initializing Exam Environment...</p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // *** 配置信息 ***
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
             projectId: "hesitation-research",
             storageBucket: "hesitation-research.firebasestorage.app",
             messagingSenderId: "633469376688",
-            appId: "1:633469376688:web:dc26878c070a05a35b4375",
-            measurementId: "G-ZNZ14Q5R98"
+            appId: "1:633469376688:web:dc26878c070a05a35b4375"
         };
-        
-        const APP_ID = "hesitation-research"; 
-        const MOUSE_TRACKING_INTERVAL = 50;   
 
-        // --- State ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // *** 全局状态 (State Management) ***
         const state = {
-            db: null,
-            auth: null,
-            user: null,
-            questions: [],
+            userId: "user_" + Math.random().toString(36).substr(2, 9), // 模拟匿名用户ID
+            sessionId: Date.now().toString(),
+            examSequence:, // 扁平化的题目序列
+            passagesCache: {}, // 缓存文章内容 {id: data}
             currentIndex: 0,
-            answers: {}, 
-            startTime: null, 
-            questionStartTime: null, 
-            currentTrajectory: [],
-            isTracking: false,
-            demographics: {},
-            generatedId: "" // 存储生成的 ID (WangJie_M_21_1203)
+            
+            // 过程数据临时存储
+            currentLog: {
+                trajectory:, // 鼠标轨迹
+                startTime: 0,
+                passageScrollDepth: 0 // 记录读了多少
+            }
         };
 
-        // --- 工具函数: 节流 ---
-        function throttle(func, limit) {
-            let inThrottle;
-            return function() {
-                const args = arguments;
-                const context = this;
-                if (!inThrottle) {
-                    func.apply(context, args);
-                    inThrottle = true;
-                    setTimeout(() => inThrottle = false, limit);
-                }
-            }
-        }
-
-        // --- 初始化 ---
-        async function initApp() {
-            const app = initializeApp(firebaseConfig);
-            state.auth = getAuth(app);
-            state.db = getFirestore(app);
-
+        // *** 1. 初始化：构建考试序列 (Test Assembly) ***
+        async function initExam() {
             try {
-                const userCredential = await signInAnonymously(state.auth);
-                state.user = userCredential.user;
-                console.log("Connected. UID:", state.user.uid);
+                // 1.1 获取所有题目
+                // 注意：真实场景下这里应该按Exam ID筛选，此处简化为拉取全量
+                const qSnapshot = await getDocs(collection(db, "questions"));
                 
-                document.getElementById('loading-spinner').classList.add('hidden');
-                document.getElementById('demographic-modal').classList.remove('hidden');
-
-            } catch (error) {
-                console.error("Auth Error", error);
-                alert("登录失败，请刷新页面重试");
-            }
-        }
-
-        // --- 业务逻辑 ---
-        async function startExam() {
-            // 1. 获取输入
-            const name = document.getElementById('input-name').value.trim();
-            const gender = document.getElementById('input-gender').value;
-            const age = document.getElementById('input-age').value;
-            const grade = document.getElementById('input-grade').value;
-            
-            // 2. 获取勾选框
-            const isAwake = document.getElementById('check-awake').checked;
-            const isPrivacyAgreed = document.getElementById('check-privacy').checked;
-            const isMouse = document.getElementById('check-mouse').checked;
-
-            // 3. 验证
-            if (!name || !gender || !age || !grade) {
-                alert("请完整填写个人信息（姓名拼音、性别、年龄、年级）。");
-                return;
-            }
-            // 简单验证姓名是否为英文/拼音
-            if (!/^[a-zA-Z\s]+$/.test(name)) {
-                alert("姓名请务必使用【拼音】或【英文】，不要使用汉字。");
-                return;
-            }
-            if (!isAwake) {
-                alert("请确认您当前处于清醒状态。");
-                return;
-            }
-            if (!isPrivacyAgreed) {
-                alert("我们需要您的授权才能收集数据用于研究。");
-                return;
-            }
-            if (!isMouse) {
-                alert("本实验严格要求使用鼠标。");
-                return;
-            }
-
-            // 4. 生成标准化 ID: Name_Gender_Age_Date (例如 WangJie_M_21_1203)
-            const now = new Date();
-            const month = String(now.getMonth() + 1).padStart(2, '0'); // 12
-            const day = String(now.getDate()).padStart(2, '0'); // 03
-            // 去除名字空格，首字母大写处理(可选)，这里直接用
-            const cleanName = name.replace(/\s+/g, '');
-            
-            state.generatedId = `${cleanName}_${gender}_${age}_${month}${day}`;
-            
-            console.log("Subject ID Generated:", state.generatedId);
-
-            state.demographics = {
-                id_code: state.generatedId,
-                name_en: cleanName,
-                gender,
-                age,
-                grade,
-                device: 'mouse_confirmed',
-                conditions: {
-                    is_awake: true,
-                    privacy_agreed: true
-                },
-                userAgent: navigator.userAgent
-            };
-
-            document.getElementById('demographic-modal').classList.add('hidden');
-            document.getElementById('loading-spinner').classList.remove('hidden');
-            document.getElementById('loading-text').innerText = "正在同步题库...";
-
-            await loadQuestions();
-        }
-
-        async function loadQuestions() {
-            try {
-                const qRef = collection(state.db, 'artifacts', APP_ID, 'public', 'data', 'questions');
-                const snapshot = await getDocs(qRef);
-                state.questions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-                if (state.questions.length === 0) {
-                    alert("题库暂无题目，请联系管理员。");
-                    document.getElementById('loading-spinner').classList.add('hidden');
+                if (qSnapshot.empty) {
+                    alert("No questions found in database.");
                     return;
                 }
 
-                document.getElementById('loading-spinner').classList.add('hidden');
-                document.getElementById('exam-view').classList.remove('hidden');
+                // 1.2 构建题目队列
+                // 我们需要按 passage_id 对题目进行排序，确保同一篇文章的题目连续出现
+                const rawQuestions =;
+                qSnapshot.forEach(doc => {
+                    rawQuestions.push({ id: doc.id,...doc.data() });
+                });
+
+                // 按文章分组排序 (Passage-Based Testlet Structure)
+                rawQuestions.sort((a, b) => a.passage_id.localeCompare(b.passage_id));
+                state.examSequence = rawQuestions;
+
+                // 1.3 预加载所有相关的文章 (Pre-fetch Passages)
+                const uniquePassageIds =;
+                await Promise.all(uniquePassageIds.map(async (pid) => {
+                    const pDoc = await getDoc(doc(db, "reading_materials", pid));
+                    if (pDoc.exists()) {
+                        state.passagesCache[pid] = pDoc.data();
+                    }
+                }));
+
+                // 1.4 渲染UI
+                document.getElementById('total-q-num').innerText = state.examSequence.length;
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('exam-interface').classList.remove('opacity-0');
                 
-                state.startTime = Date.now();
-                renderQuestion(0);
-                startGlobalTracking();
+                renderCurrentQuestion();
 
-            } catch (e) {
-                console.error("Load Questions Error", e);
-                alert("题目加载失败: " + e.message);
+            } catch (error) {
+                console.error("Init Error:", error);
+                alert("Failed to load exam data. See console.");
             }
         }
 
-        function renderQuestion(index) {
-            if (index >= state.questions.length) {
-                submitExam();
-                return;
+        // *** 2. 渲染逻辑 (Rendering) ***
+        function renderCurrentQuestion() {
+            const currentQ = state.examSequence[state.currentIndex];
+            const passageData = state.passagesCache[currentQ.passage_id];
+
+            // 2.1 更新文章区 (仅当文章切换时才重绘DOM，优化性能)
+            const passageTitleEl = document.getElementById('passage-title');
+            if (passageTitleEl.innerText!== passageData.title) {
+                passageTitleEl.innerText = passageData.title;
+                document.getElementById('passage-genre').innerText = passageData.genre |
+
+| "Article";
+                document.getElementById('passage-content').innerHTML = passageData.content_html;
+                
+                // 重置滚动条
+                document.getElementById('reading-pane').scrollTop = 0;
             }
 
-            state.currentIndex = index;
-            state.questionStartTime = Date.now();
-            state.currentTrajectory = []; 
+            // 2.2 更新题目区
+            document.getElementById('current-q-num').innerText = state.currentIndex + 1;
+            document.getElementById('q-stem').innerText = currentQ.stem;
+
+            // 2.3 生成选项
+            const optionsContainer = document.getElementById('options-list');
+            optionsContainer.innerHTML = '';
             
-            const q = state.questions[index];
-            
-            const progress = ((index + 1) / state.questions.length) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
-            document.getElementById('progress-text').innerText = `Progress: ${index + 1} / ${state.questions.length}`;
-
-            const container = document.getElementById('question-container');
-            container.innerHTML = `
-                <div class="animate-fade-in">
-                    <div class="mb-6">
-                        <div class="flex gap-2 mb-3">
-                            <span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-bold rounded border border-blue-100 uppercase">
-                                ${q.metadata?.subject || 'Test'}
-                            </span>
-                        </div>
-                        <h2 class="text-xl md:text-2xl font-bold text-slate-800 leading-relaxed font-serif">
-                            ${q.text}
-                        </h2>
-                    </div>
-                    
-                    <div class="space-y-3">
-                        ${q.options.map((opt, i) => `
-                            <div onclick="window.handleOptionSelect(${i})" 
-                                 id="opt-${i}"
-                                 class="option-card group cursor-pointer p-4 rounded-xl border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center select-none">
-                                <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold mr-4 group-hover:bg-blue-200 group-hover:text-blue-700 transition-colors">
-                                    ${String.fromCharCode(65+i)}
-                                </div>
-                                <span class="text-slate-700 font-medium group-hover:text-blue-900">${opt}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        function startGlobalTracking() {
-            if(state.isTracking) return;
-            state.isTracking = true;
-
-            document.addEventListener('mousemove', throttle((e) => {
-                if(document.getElementById('exam-view').classList.contains('hidden')) return;
-
-                const point = [
-                    Math.round(e.clientX), 
-                    Math.round(e.clientY), 
-                    Date.now() - state.questionStartTime
-                ];
-                state.currentTrajectory.push(point);
-            }, MOUSE_TRACKING_INTERVAL));
-        }
-
-        window.handleOptionSelect = function(optionIndex) {
-            document.querySelectorAll('.option-card').forEach(el => {
-                el.classList.remove('border-blue-600', 'bg-blue-100');
-                el.classList.add('border-slate-200');
+            currentQ.options.forEach((optText, idx) => {
+                const btn = document.createElement('div');
+                btn.className = "option-card flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-all group";
+                btn.setAttribute('data-index', idx);
+                btn.innerHTML = `
+                    <span class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold text-sm mr-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">${String.fromCharCode(65 + idx)}</span>
+                    <span class="text-sm text-gray-700 flex-1">${optText}</span>
+                `;
+                
+                btn.onclick = () => selectOption(idx);
+                optionsContainer.appendChild(btn);
             });
-            const selected = document.getElementById(`opt-${optionIndex}`);
-            selected.classList.remove('border-slate-200');
-            selected.classList.add('border-blue-600', 'bg-blue-100');
 
-            state.tempSelection = optionIndex;
-            
-            const nextBtn = document.getElementById('next-btn');
-            nextBtn.disabled = false;
-            nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            nextBtn.classList.add('animate-pop-up');
+            // 2.4 重置状态与开始计时
+            document.getElementById('btn-next').disabled = true;
+            state.currentLog.startTime = Date.now();
+            state.currentLog.trajectory =;
+            state.currentLog.selectedIdx = null;
         }
 
-        window.nextQuestion = function() {
-            if (state.tempSelection === undefined) return;
-
-            const q = state.questions[state.currentIndex];
-            const now = Date.now();
+        // *** 3. 交互逻辑 (Interaction) ***
+        window.selectOption = function(idx) {
+            // UI更新
+            const cards = document.querySelectorAll('.option-card');
+            cards.forEach(c => c.classList.remove('selected'));
+            cards[idx].classList.add('selected');
             
-            state.answers[q.id] = {
-                selectedOption: state.tempSelection,
-                correctOption: parseInt(q.correctIndex),
-                isCorrect: parseInt(state.tempSelection) === parseInt(q.correctIndex),
-                timeSpentMs: now - state.questionStartTime,
-                trajectory: [...state.currentTrajectory], 
-                q_difficulty: q.metadata?.difficulty_b || 0,
-                timestamp: Date.now()
-            };
+            // 状态更新
+            state.currentLog.selectedIdx = idx;
+            document.getElementById('btn-next').disabled = false;
+        };
 
-            state.tempSelection = undefined;
-            document.getElementById('next-btn').disabled = true;
-            document.getElementById('next-btn').classList.add('opacity-50', 'cursor-not-allowed');
+        window.nextQuestion = async function() {
+            const btn = document.getElementById('btn-next');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+            
+            await submitCurrentData();
 
-            renderQuestion(state.currentIndex + 1);
-        }
-
-        async function submitExam() {
-            document.getElementById('exam-view').classList.add('hidden');
-            document.getElementById('loading-spinner').classList.remove('hidden');
-            document.getElementById('loading-text').innerText = "正在加密上传数据...";
-
-            // 构造完整数据包
-            const sessionData = {
-                docId: state.generatedId, // 显式保存ID
-                userId: state.user.uid,   // Firebase Auth UID
-                demographics: state.demographics,
-                answers: state.answers,
-                meta: {
-                    startTime: state.startTime,
-                    endTime: Date.now(),
-                    totalQuestions: state.questions.length,
-                    appId: APP_ID
-                },
-                submittedAt: serverTimestamp()
-            };
-
-            try {
-                // 使用 setDoc 指定 ID 写入: WangJie_M_21_1203
-                // 路径: artifacts/hesitation-research/public/data/exam_results/{generatedId}
-                const resRef = doc(state.db, 'artifacts', APP_ID, 'public', 'data', 'exam_results', state.generatedId);
-                
-                // setDoc 会覆盖同名ID。如果在意覆盖，可以使用 updateDoc 或检查是否存在，
-                // 但为了减轻负担和逻辑复杂度，这里假设同一天同一个人只测一次，或者覆盖是可以接受的。
-                await setDoc(resRef, sessionData);
-
-                document.getElementById('loading-spinner').classList.add('hidden');
-                document.getElementById('success-view').classList.remove('hidden');
-                document.getElementById('subject-id-display').innerText = state.generatedId;
-
-            } catch (e) {
-                console.error("Upload Error", e);
-                alert("数据上传失败: " + e.message);
-                document.getElementById('loading-spinner').classList.add('hidden');
+            if (state.currentIndex < state.examSequence.length - 1) {
+                state.currentIndex++;
+                renderCurrentQuestion();
+                btn.innerHTML = '<span>Next Question</span><i class="fa-solid fa-arrow-right ml-2"></i>';
+            } else {
+                alert("Exam Completed! Thank you for your participation.");
+                window.location.reload();
             }
+        };
+
+        // *** 4. 数据提交与阴影参数更新 (Data Submission) ***
+        async function submitCurrentData() {
+            const qData = state.examSequence[state.currentIndex];
+            const pData = state.passagesCache;
+            
+            // 4.1 构建过程数据日志
+            // 注意：这里我们不直接判断对错，而是将选择上传。
+            // 真实的参数更新（Elo）将在后端 Cloud Function 中触发
+            const logData = {
+                session_id: state.sessionId,
+                user_id: state.userId,
+                item_id: qData.id,
+                passage_id: qData.passage_id,
+                
+                // 核心作答数据
+                response: {
+                    selected_index: state.currentLog.selectedIdx,
+                    response_time_ms: Date.now() - state.currentLog.startTime,
+                    timestamp: serverTimestamp()
+                },
+
+                // 行为数据 (用于分析犹豫)
+                behavior_metrics: {
+                    passage_scroll_depth: document.getElementById('reading-pane').scrollTop, // 读到哪了
+                    trajectory_count: state.currentLog.trajectory.length,
+                    // 实际轨迹数据量可能很大，建议压缩或仅存储关键特征
+                    // 这里为了演示，我们截取前1000个点
+                    trajectory_sample: state.currentLog.trajectory.slice(0, 1000) 
+                },
+
+                // 影子参数元数据 (传递给后端算法的上下文)
+                shadow_context: {
+                    current_shadow_b: qData.shadow_parameters?.b_hat |
+
+| 0, // 当前估计的难度
+                    passage_difficulty: pData.shadow_difficulty |
+
+| 0
+                }
+            };
+
+            // 4.2 写入 Firestore
+            await addDoc(collection(db, "interaction_logs"), logData);
+            console.log("Log saved:", logData);
         }
 
-        window.startExam = startExam;
-        window.initApp = initApp;
-        initApp(); 
+        // *** 5. 高频轨迹追踪 (Mouse Tracking Engine) ***
+        const readingPane = document.getElementById('reading-pane');
+        const itemPane = document.getElementById('item-pane');
+
+        // 节流函数，防止每毫秒都记录
+        let lastTrackTime = 0;
+        const TRACK_INTERVAL = 50; // 50ms = 20Hz 采样率
+
+        document.addEventListener('mousemove', (e) => {
+            const now = Date.now();
+            if (now - lastTrackTime < TRACK_INTERVAL) return;
+            
+            // 5.1 判定区域 (Context Awareness)
+            let region = 'neutral'; // 空白区域
+            let relativeX = e.clientX;
+            let relativeY = e.clientY;
+
+            // 检测鼠标是否在阅读区
+            const rRect = readingPane.getBoundingClientRect();
+            if (e.clientX >= rRect.left && e.clientX <= rRect.right) {
+                region = 'passage';
+                // 记录相对于阅读内容的Y坐标 (考虑滚动)
+                relativeY = e.clientY + readingPane.scrollTop; 
+            } 
+            // 检测鼠标是否在题目区
+            else {
+                const iRect = itemPane.getBoundingClientRect();
+                if (e.clientX >= iRect.left) {
+                    region = 'item';
+                }
+            }
+
+            // 5.2 记录数据点
+            state.currentLog.trajectory.push({
+                t: now - state.currentLog.startTime, // 相对时间
+                x: Math.round(e.clientX),
+                y: Math.round(e.clientY),
+                r: region, // 语义区域
+                s: readingPane.scrollTop // 同步记录滚动位置
+            });
+
+            lastTrackTime = now;
+        });
+
+        // 启动
+        initExam();
 
     </script>
-
-    <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .animate-pop-up { animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        .option-card { transition: all 0.2s; }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen selection:bg-blue-100">
-
-    <!-- Loading -->
-    <div id="loading-spinner" class="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm">
-        <div class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p id="loading-text" class="text-slate-500 animate-pulse font-medium">Connecting...</p>
-        </div>
-    </div>
-
-    <!-- 1. 个人信息收集 (已修改) -->
-    <div id="demographic-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 animate-fade-in my-8">
-            <div class="text-center mb-6">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-600">
-                    <i class="fa-solid fa-id-card text-xl"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-800">实验信息登记</h2>
-                <p class="text-slate-500 text-sm mt-1">请如实填写，数据将严格保密。</p>
-            </div>
-
-            <div class="space-y-4">
-                <!-- 姓名 (拼音) -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">姓名 (请使用拼音/英文)</label>
-                    <input type="text" id="input-name" placeholder="例如: WangJie" class="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" required>
-                    <p class="text-xs text-slate-400 mt-1">*为了生成唯一ID，请勿使用汉字</p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <!-- 性别 -->
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">性别</label>
-                        <select id="input-gender" class="w-full rounded-lg border-slate-300 border p-2.5 outline-none">
-                            <option value="M">男 (Male)</option>
-                            <option value="F">女 (Female)</option>
-                        </select>
-                    </div>
-                    <!-- 年龄 -->
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">年龄</label>
-                        <input type="number" id="input-age" min="16" max="40" placeholder="20" class="w-full rounded-lg border-slate-300 border p-2.5 outline-none">
-                    </div>
-                </div>
-
-                <!-- 年级 -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">年级</label>
-                    <select id="input-grade" class="w-full rounded-lg border-slate-300 border p-2.5 outline-none">
-                        <option value="Freshman">大一</option>
-                        <option value="Sophomore">大二</option>
-                        <option value="Junior">大三</option>
-                        <option value="Senior">大四</option>
-                        <option value="Master">研究生</option>
-                    </select>
-                </div>
-
-                <hr class="border-slate-100 my-4">
-
-                <!-- 实验要求确认 (Checkboxes) -->
-                <div class="space-y-3">
-                    <div class="flex items-start gap-3">
-                        <input type="checkbox" id="check-awake" class="mt-1 w-4 h-4 text-blue-600 rounded">
-                        <label for="check-awake" class="text-sm text-slate-600 leading-tight select-none">
-                            我确认当前处于<strong>清醒状态</strong>，未受酒精、药物或极度疲劳影响。
-                        </label>
-                    </div>
-                    
-                    <div class="flex items-start gap-3">
-                        <input type="checkbox" id="check-mouse" class="mt-1 w-4 h-4 text-blue-600 rounded">
-                        <label for="check-mouse" class="text-sm text-slate-600 leading-tight select-none">
-                            我正在使用<strong>实体鼠标</strong>进行操作（非触摸屏/触控板）。
-                        </label>
-                    </div>
-
-                    <div class="flex items-start gap-3">
-                        <input type="checkbox" id="check-privacy" class="mt-1 w-4 h-4 text-blue-600 rounded">
-                        <label for="check-privacy" class="text-sm text-slate-600 leading-tight select-none">
-                            <strong>知情同意</strong>：我同意将我的答题数据（包含鼠标轨迹）用于学术研究。研究组承诺保护我的个人隐私。
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <button onclick="window.startExam()" class="mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-blue-200 active:scale-95">
-                开始测评
-            </button>
-        </div>
-    </div>
-
-    <!-- 2. 考试界面 -->
-    <div id="exam-view" class="hidden min-h-screen flex flex-col max-w-3xl mx-auto px-4 py-6">
-        <div class="flex justify-between items-end mb-4">
-            <div>
-                <h1 class="font-bold text-slate-800">Research Task</h1>
-                <p id="progress-text" class="text-xs text-slate-500 mt-1">Loading...</p>
-            </div>
-            <div class="text-right">
-                <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></span>
-                <span class="text-xs text-slate-400 ml-1 font-mono">REC</span>
-            </div>
-        </div>
-        
-        <div class="w-full bg-slate-200 rounded-full h-2 mb-8 overflow-hidden">
-            <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
-        </div>
-
-        <div id="question-container" class="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-10 mb-20 relative">
-            <!-- Dynamic Content -->
-        </div>
-
-        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur border-t border-slate-100 flex justify-center z-10">
-            <button id="next-btn" onclick="window.nextQuestion()" disabled class="w-full max-w-xs bg-slate-800 text-white font-bold py-3 px-8 rounded-full shadow-lg opacity-50 cursor-not-allowed transition-all hover:bg-slate-700 active:scale-95 flex items-center justify-center gap-2">
-                下一题 <i class="fa-solid fa-arrow-right"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- 3. 成功结束界面 -->
-    <div id="success-view" class="hidden fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 text-center">
-        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-pop-up">
-            <i class="fa-solid fa-check text-4xl text-green-600"></i>
-        </div>
-        <h2 class="text-3xl font-bold text-slate-800 mb-2">数据上传成功</h2>
-        <p class="text-slate-500 max-w-md mx-auto mb-4">感谢您的参与。</p>
-        
-        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 inline-block mb-6">
-            <p class="text-xs text-slate-400 uppercase">Your Data ID</p>
-            <p id="subject-id-display" class="text-lg font-mono font-bold text-blue-600 select-all">Loading...</p>
-        </div>
-
-        <a href="index.html" class="text-slate-500 hover:text-slate-800 font-medium">关闭页面</a>
-    </div>
-
 </body>
 </html>
