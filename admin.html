@@ -3,186 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CET Research Admin | 阴影参数录入系统</title>
+    <title>CET Research Admin Console | 阴影参数录入系统</title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
     
     <style>
+        /* 自定义滚动条样式 */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-       .glass-panel { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.2); }
+        
+      .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* 简单的淡入动画 */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+       .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex">
 
-    <header class="bg-slate-900 text-white h-16 flex items-center justify-between px-6 shadow-md z-20">
-        <div class="flex items-center space-x-3">
-            <i class="fa-solid fa-layer-group text-blue-400"></i>
-            <h1 class="text-lg font-bold tracking-wider">CET Parameter Reconstruction Console</h1>
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20">
+        <div class="p-6 border-b border-slate-700">
+            <h1 class="text-xl font-bold tracking-wider"><i class="fa-solid fa-layer-group mr-2"></i>CET 参数重构</h1>
+            <p class="text-xs text-slate-400 mt-2">v2.0.2 (Hotfix)</p>
         </div>
-        <div class="text-xs text-slate-400">
-            Project ID: <span class="font-mono text-white">hesitation-research</span>
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="#" class="block px-4 py-3 rounded-lg bg-blue-600 text-white shadow-lg">
+                <i class="fa-solid fa-file-pen mr-3"></i> 试题录入 (Entry)
+            </a>
+            <a href="#" class="block px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                <i class="fa-solid fa-chart-line mr-3"></i> 参数监控 (Monitor)
+            </a>
+        </nav>
+        <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
+            &copy; 2024 Research Lab
         </div>
-    </header>
+    </aside>
 
-    <div class="flex-1 flex overflow-hidden">
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         
-        <div class="w-5/12 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
-            <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    <i class="fa-solid fa-book-open mr-2"></i> Step 1: 录入阅读语篇 (Passage)
-                </h2>
-                <span class="text-xs text-slate-400" id="word-count-badge">0 words</span>
+        <header class="bg-white h-16 border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10">
+            <h2 class="text-lg font-semibold text-slate-700">阅读理解题组录入 (Passage-Based Testlet)</h2>
+            <div class="flex items-center space-x-4">
+                <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200">
+                    Database: Connected
+                </span>
+                <button onclick="window.resetAll()" class="text-sm text-red-500 hover:text-red-700 underline">
+                    重置所有表单
+                </button>
             </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
             
-            <div class="p-6 overflow-y-auto space-y-5 flex-1">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 mb-1">Article Title / ID</label>
-                    <input type="text" id="p-title" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm" placeholder="e.g., CET6-2023-June-Passage1">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1">Genre</label>
-                        <select id="p-genre" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-sm">
-                            <option value="informational">说明文 (Informational)</option>
-                            <option value="argumentative">议论文 (Argumentative)</option>
-                            <option value="narrative">记叙文 (Narrative)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1">Source</label>
-                        <input type="text" id="p-source" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-sm" placeholder="e.g., The Economist">
-                    </div>
-                </div>
-
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-blue-800">Passage Level Parameters</span>
-                        <i class="fa-solid fa-circle-question text-blue-400 text-xs" title="用于校准题组效应(Testlet Effect)"></i>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
+            <section class="w-5/12 h-full overflow-y-auto p-6 border-r border-slate-200 bg-white">
+                <div class="mb-6">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-4 tracking-wider">Step 1: 语篇信息 (Passage Context)</h3>
+                    
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-[10px] text-blue-600 uppercase">Shadow Difficulty ($b$)</label>
-                            <input type="number" id="p-diff" step="0.1" value="0.0" class="w-full mt-1 p-1.5 text-sm border border-blue-200 rounded text-center">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">文章标题 / ID</label>
+                            <input type="text" id="p-title" class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition" placeholder="例如: CET6-2023-June-Set1-Passage1">
                         </div>
-                        <div>
-                            <label class="block text-[10px] text-blue-600 uppercase">Readability Score</label>
-                            <input type="number" id="p-readability" class="w-full mt-1 p-1.5 text-sm border border-blue-200 rounded text-center bg-white" placeholder="Auto" disabled>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex-1 flex flex-col min-h-[300px]">
-                    <label class="block text-xs font-semibold text-slate-500 mb-1">Content (HTML Support)</label>
-                    <textarea id="p-content" class="w-full flex-1 p-3 bg-slate-50 border border-slate-300 rounded font-serif leading-relaxed text-sm focus:border-blue-500 outline-none resize-none" placeholder="Paste article content here. Use <p> tags for paragraphs..."></textarea>
-                </div>
-            </div>
-        </div>
-
-        <div class="w-7/12 bg-slate-50 flex flex-col relative">
-            
-            <div id="questions-list" class="flex-1 overflow-y-auto p-6 space-y-4 pb-48">
-                <div id="empty-state" class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-                    <i class="fa-regular fa-clipboard text-4xl mb-2"></i>
-                    <p class="text-sm">No questions added yet.</p>
-                </div>
-            </div>
-
-            <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] p-5 z-20">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                        <i class="fa-solid fa-list-check mr-2"></i> Step 2: 添加题目 (Add Question)
-                    </h2>
-                    <span class="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded font-mono">Current: Q<span id="next-q-num">1</span></span>
-                </div>
-
-                <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-8 space-y-2">
-                        <input type="text" id="q-stem" class="w-full p-2 text-sm border border-slate-300 rounded focus:border-blue-500 outline-none" placeholder="输入题干 (Question Stem)...">
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="flex items-center">
-                                <span class="w-6 text-center text-xs font-bold text-slate-400">A</span>
-                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option A">
-                            </div>
-                            <div class="flex items-center">
-                                <span class="w-6 text-center text-xs font-bold text-slate-400">B</span>
-                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option B">
-                            </div>
-                            <div class="flex items-center">
-                                <span class="w-6 text-center text-xs font-bold text-slate-400">C</span>
-                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option C">
-                            </div>
-                            <div class="flex items-center">
-                                <span class="w-6 text-center text-xs font-bold text-slate-400">D</span>
-                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded ml-1" placeholder="Option D">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-span-4 flex flex-col justify-between space-y-2">
-                        <div class="grid grid-cols-2 gap-2">
+                        
+                        <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-[9px] text-slate-400">Correct</label>
-                                <select id="q-correct" class="w-full p-1 text-xs border rounded bg-slate-50">
-                                    <option value="0">A</option>
-                                    <option value="1">B</option>
-                                    <option value="2">C</option>
-                                    <option value="3">D</option>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">体裁 (Genre)</label>
+                                <select id="p-genre" class="w-full p-2 border border-slate-300 rounded bg-white">
+                                    <option value="informational">说明文 (Informational)</option>
+                                    <option value="argumentative">议论文 (Argumentative)</option>
+                                    <option value="narrative">记叙文 (Narrative)</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[9px] text-slate-400">Bloom</label>
-                                <select id="q-bloom" class="w-full p-1 text-xs border rounded bg-slate-50">
-                                    <option value="Analyze">Analyze</option>
-                                    <option value="Understand">Understand</option>
-                                    <option value="Evaluate">Evaluate</option>
-                                    <option value="Remenber">Remenber</option>
-                                </select>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">来源 (Source)</label>
+                                <input type="text" id="p-source" class="w-full p-2 border border-slate-300 rounded" placeholder="例如: The Guardian">
                             </div>
                         </div>
 
-                        <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
-                            <label class="block text-[9px] font-bold text-indigo-800 text-center mb-1">IRT / Shadow Init</label>
-                            <div class="flex justify-between gap-1">
-                                <input type="number" id="q-b" step="0.1" value="0.0" class="w-full text-center text-xs border-b border-indigo-200 bg-transparent p-0.5" title="Difficulty (b)">
-                                <input type="number" id="q-a" step="0.1" value="1.0" class="w-full text-center text-xs border-b border-indigo-200 bg-transparent p-0.5" title="Discrimination (a)">
-                                <input type="number" id="q-c" step="0.01" value="0.25" class="w-full text-center text-xs border-b border-indigo-200 bg-transparent p-0.5" title="Guessing (c)">
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-600">Shadow Metrics (Initial)</span>
+                                <i class="fa-solid fa-circle-info text-slate-400 text-xs" title="这些参数将用于冷启动阶段的Elo算法校准"></i>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 uppercase">Est. Difficulty ($b$)</label>
+                                    <input type="number" id="p-diff" step="0.1" value="0.0" class="w-full mt-1 p-1 text-sm border rounded">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 uppercase">Readability (Flesch)</label>
+                                    <input type="number" id="p-readability" class="w-full mt-1 p-1 text-sm border rounded" placeholder="Auto-calc" disabled>
+                                </div>
                             </div>
                         </div>
 
-                        <button onclick="stageQuestion()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-bold transition flex items-center justify-center">
-                            <i class="fa-solid fa-plus mr-2"></i> 暂存题目 (Stage)
-                        </button>
+                        <div class="flex-1 flex flex-col">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">正文内容 (支持 HTML 标签)</label>
+                            <textarea id="p-content" class="w-full flex-1 p-3 border border-slate-300 rounded font-serif leading-relaxed text-sm focus:border-blue-500 outline-none" rows="15" placeholder="在此粘贴文章内容... <p>段落1</p><p>段落2</p>"></textarea>
+                            <div class="text-right text-xs text-slate-400 mt-1">
+                                Word Count: <span id="word-count">0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+            </section>
 
-    <div class="bg-white border-t border-slate-200 h-16 flex items-center justify-between px-8 z-30">
-        <div class="text-sm text-slate-500">
-            Total Items: <span id="total-count" class="font-bold text-slate-800">0</span>
+            <section class="w-7/12 h-full bg-slate-50 flex flex-col relative">
+                
+                <div id="questions-container" class="flex-1 overflow-y-auto p-6 space-y-4 pb-48">
+                    <div id="empty-state" class="flex flex-col items-center justify-center h-64 text-slate-400 border-2 border-dashed border-slate-300 rounded-xl">
+                        <i class="fa-regular fa-folder-open text-4xl mb-3"></i>
+                        <p>暂无关联题目</p>
+                        <p class="text-xs">请在下方表单添加属于该文章的题目</p>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-20">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-3">Step 2: 添加题目 (Add Question)</h3>
+                    
+                    <div class="grid grid-cols-12 gap-4">
+                        <div class="col-span-8 space-y-2">
+                            <input type="text" id="q-stem" class="w-full p-2 text-sm border border-slate-300 rounded focus:border-blue-600" placeholder="输入题干 (Question Stem)...">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded" placeholder="Option A">
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded" placeholder="Option B">
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded" placeholder="Option C">
+                                <input type="text" class="q-opt w-full p-1.5 text-xs border rounded" placeholder="Option D">
+                            </div>
+                        </div>
+
+                        <div class="col-span-4 flex flex-col justify-between space-y-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] text-slate-500">Correct Ans</label>
+                                    <select id="q-correct" class="w-full p-1 text-xs border rounded bg-slate-50">
+                                        <option value="0">A</option>
+                                        <option value="1">B</option>
+                                        <option value="2">C</option>
+                                        <option value="3">D</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-500">Bloom Level</label>
+                                    <select id="q-bloom" class="w-full p-1 text-xs border rounded bg-slate-50">
+                                        <option value="Remember">Remember</option>
+                                        <option value="Understand">Understand</option>
+                                        <option value="Analyze">Analyze</option>
+                                        <option value="Evaluate">Evaluate</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-1 bg-blue-50 p-2 rounded border border-blue-100">
+                                <div>
+                                    <label class="block text-[9px] text-blue-600 text-center">Diff ($b$)</label>
+                                    <input type="number" id="q-b" step="0.1" value="0.0" class="w-full text-center text-xs border-0 bg-transparent border-b border-blue-200">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-blue-600 text-center">Disc ($a$)</label>
+                                    <input type="number" id="q-a" step="0.1" value="1.0" class="w-full text-center text-xs border-0 bg-transparent border-b border-blue-200">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-blue-600 text-center">Guess ($c$)</label>
+                                    <input type="number" id="q-c" step="0.01" value="0.25" class="w-full text-center text-xs border-0 bg-transparent border-b border-blue-200">
+                                </div>
+                            </div>
+
+                            <button onclick="window.stageQuestion()" class="w-full py-2 bg-slate-800 text-white rounded text-xs font-bold hover:bg-slate-700 transition cursor-pointer">
+                                <i class="fa-solid fa-plus mr-1"></i> 暂存题目
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
-        <div class="flex space-x-4">
-            <button onclick="clearAll()" class="text-slate-400 hover:text-red-500 text-sm font-bold transition">Clear All</button>
-            <button onclick="uploadToFirebase()" id="btn-submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg shadow-blue-200 transition transform active:scale-95 flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+
+        <div class="h-16 bg-white border-t border-slate-200 flex justify-end items-center px-8 space-x-4 shadow-lg z-30">
+            <div class="text-sm text-slate-500 mr-auto">
+                Current Batch: <span id="batch-count" class="font-bold text-slate-800">0</span> questions
+            </div>
+            <button onclick="window.uploadTestlet()" id="btn-upload" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 transition transform active:scale-95 flex items-center cursor-pointer">
                 <i class="fa-solid fa-cloud-arrow-up mr-2"></i> 提交完整题组 (Upload Testlet)
             </button>
         </div>
-    </div>
+
+    </main>
 
     <script type="module">
-        // ==========================================
-        // 1. Firebase Configuration & Initialization
-        // ==========================================
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js](https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js)";
+        import { getFirestore, collection, doc, writeBatch, serverTimestamp } from "[https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js](https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js)";
 
-        // 请确保这里是你正确的 Firebase 配置
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
@@ -195,97 +212,85 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // ==========================================
-        // 2. Local State Management
-        // ==========================================
-        // 修复点1：之前代码中数组初始化被截断了，这里补全为
-        let stagedQuestions =; 
+        // State
+        let stagedQuestions =; // 修复了之前的初始化错误
 
-        // ==========================================
-        // 3. Helper Functions
-        // ==========================================
-        
-        // 字数统计辅助函数
+        // Helper: Word Count
         document.getElementById('p-content').addEventListener('input', function(e) {
-            const text = e.target.value.replace(/<[^>]*>?/gm, ''); // strip HTML
+            const text = e.target.value.replace(/<[^>]*>?/gm, '');
             const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
             document.getElementById('word-count').innerText = count;
         });
 
-        // ==========================================
-        // 4. Question Staging Logic (Local)
-        // ==========================================
-        // 必须挂载到 window 对象上，HTML 中的 onclick 才能访问到
+        // Logic: Stage Question
         window.stageQuestion = function() {
-            // Get values
             const stem = document.getElementById('q-stem').value;
             const optionInputs = document.querySelectorAll('.q-opt');
             const options = Array.from(optionInputs).map(input => input.value);
             
-            // Validation
-            // 修复点2：修复了被断行的逻辑运算符 ||
-            if (!stem || options.some(o =>!o.trim())) {
+            // 修复了之前的逻辑判断符断行问题
+            if (!stem |
+
+| options.some(o =>!o.trim())) {
                 alert("请填写完整的题干和所有选项！");
                 return;
             }
 
-            // Create Object
             const questionData = {
-                id: Date.now(), // Temporary ID for UI
+                id: Date.now(),
                 stem: stem,
                 options: options,
                 correct_index: parseInt(document.getElementById('q-correct').value),
                 cognitive_dimension: {
                     bloom_level: document.getElementById('q-bloom').value
                 },
-                // IRT Parameters
                 irt_parameters: {
                     b: parseFloat(document.getElementById('q-b').value),
                     a: parseFloat(document.getElementById('q-a').value),
                     c: parseFloat(document.getElementById('q-c').value)
                 },
-                // Initial Shadow Params
                 shadow_params: {
                     b_hat: parseFloat(document.getElementById('q-b').value),
-                    n_exposures: 0,
-                    convergence_score: 0.0
+                    n_exposures: 0
                 }
             };
 
-            // Add to state
             stagedQuestions.push(questionData);
             renderStagedQuestions();
             
-            // Clear inputs for next entry (保留参数设定)
+            // Clear inputs
             document.getElementById('q-stem').value = '';
             optionInputs.forEach(i => i.value = '');
         };
 
-        window.renderStagedQuestions = function() {
+        // Logic: Render List
+        function renderStagedQuestions() {
             const container = document.getElementById('questions-container');
             const emptyState = document.getElementById('empty-state');
             const batchCount = document.getElementById('batch-count');
 
-            if (stagedQuestions.length > 0) {
-                if(emptyState) emptyState.classList.add('hidden');
-            } else {
-                if(emptyState) emptyState.classList.remove('hidden');
+            if (stagedQuestions.length > 0 && emptyState) {
+                emptyState.classList.add('hidden');
             }
 
-            // Re-render list
-            container.innerHTML = '';
+            container.innerHTML = ''; // Clear current view
+            if (stagedQuestions.length === 0 && emptyState) {
+                emptyState.classList.remove('hidden');
+                container.appendChild(emptyState);
+            }
+
             stagedQuestions.forEach((q, index) => {
                 const card = document.createElement('div');
                 card.className = "bg-white p-4 rounded-lg shadow-sm border border-slate-200 relative group animate-fade-in mb-3";
                 card.innerHTML = `
-                    <div class="absolute top-2 right-2 text-slate-300 hover:text-red-500 cursor-pointer" onclick="removeQuestion(${index})">
+                    <div class="absolute top-2 right-2 text-slate-300 hover:text-red-500 cursor-pointer" onclick="window.removeQuestion(${index})">
                         <i class="fa-solid fa-circle-xmark"></i>
                     </div>
                     <div class="flex items-start justify-between mb-2">
                         <span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Q${index + 1}</span>
                         <div class="flex space-x-2 text-[10px] text-slate-400 font-mono">
-                            <span title="Difficulty">b:${q.irt_parameters.b}</span>
-                            <span title="Discrimination">a:${q.irt_parameters.a}</span>
+                            <span>b:${q.irt_parameters.b}</span>
+                            <span>a:${q.irt_parameters.a}</span>
                         </div>
                     </div>
                     <p class="text-sm font-semibold text-slate-700 mb-2 truncate">${q.stem}</p>
@@ -312,64 +317,59 @@
             }
         };
 
-        // ==========================================
-        // 5. Upload Logic (Batch Transaction)
-        // ==========================================
+        // Logic: Upload to Firebase
         window.uploadTestlet = async function() {
             const btn = document.getElementById('btn-upload');
-            
-            // 1. Validate Passage
             const pTitle = document.getElementById('p-title').value;
             const pContent = document.getElementById('p-content').value;
             
-            // 修复点3：修复了断行的逻辑运算符
-            if (!pTitle ||!pContent || stagedQuestions.length === 0) {
+            if (!pTitle ||!pContent |
+
+| stagedQuestions.length === 0) {
                 alert("请填写文章标题、内容并至少添加一道题目！");
                 return;
             }
-            
+
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Uploading...';
 
             try {
-                // Initialize Batch
                 const batch = writeBatch(db);
 
-                // 2. Prepare Passage Doc
+                // 1. Passage
                 const passageRef = doc(collection(db, "reading_materials"));
                 const passageData = {
                     title: pTitle,
                     genre: document.getElementById('p-genre').value,
                     source: document.getElementById('p-source').value,
                     content_html: pContent,
-                    word_count: parseInt(document.getElementById('word-count').innerText) || 0,
+                    word_count: parseInt(document.getElementById('word-count').innerText) |
+
+| 0,
                     created_at: serverTimestamp(),
                     shadow_difficulty: parseFloat(document.getElementById('p-diff').value)
                 };
                 batch.set(passageRef, passageData);
 
-                // 3. Prepare Question Docs
+                // 2. Questions
                 stagedQuestions.forEach(q => {
-                    const qRef = doc(collection(db, "questions")); // Auto-ID
+                    const qRef = doc(collection(db, "questions"));
                     const finalQData = {
-                        passage_id: passageRef.id, // Foreign Key Link
+                        passage_id: passageRef.id,
                         stem: q.stem,
                         options: q.options,
-                        correct_index: q.correct_index, 
+                        correct_index: q.correct_index,
                         cognitive_dimension: q.cognitive_dimension,
                         irt_parameters: q.irt_parameters,
-                        shadow_parameters: q.shadow_parameters,
+                        shadow_parameters: q.shadow_params,
                         created_at: serverTimestamp()
                     };
                     batch.set(qRef, finalQData);
                 });
 
-                // 4. Commit
                 await batch.commit();
-
-                // Success Feedback
                 alert(`成功录入！\n文章ID: ${passageRef.id}\n包含 ${stagedQuestions.length} 道题目。`);
-                location.reload();
+                window.location.reload();
 
             } catch (error) {
                 console.error("Upload failed: ", error);
@@ -381,5 +381,3 @@
     </script>
 </body>
 </html>
-
-
