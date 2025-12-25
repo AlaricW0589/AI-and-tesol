@@ -34,6 +34,12 @@
             70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
+        /* Survey Rating Buttons */
+        .rating-btn {
+            transition: all 0.2s;
+        }
+        .rating-btn:hover { background-color: #ebf8ff; border-color: #3b82f6; }
+        .rating-btn.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
     </style>
 </head>
 <body class="bg-slate-50 h-screen w-screen overflow-hidden flex flex-col unselectable" oncontextmenu="return false;">
@@ -94,6 +100,30 @@
             </div>
         </section>
     </main>
+
+    <div id="survey-modal" class="modal-overlay fixed inset-0 z-[60] hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden p-8 text-center animate-fade-in">
+            <div class="mb-6">
+                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                    <i class="fa-regular fa-lightbulb"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">元认知监测</h3>
+                <p class="text-sm text-slate-500 mt-2">请问您对刚才这道题的回答有多大把握？</p>
+            </div>
+
+            <div class="space-y-3 mb-8">
+                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="5">5 - 非常有把握 (Very Confident)</button>
+                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="4">4 - 比较有把握 (Confident)</button>
+                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="3">3 - 一般 (Neutral)</button>
+                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="2">2 - 不太有把握 (Unsure)</button>
+                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="1">1 - 完全没把握 (Guessing)</button>
+            </div>
+
+            <button id="btn-confirm-survey" disabled class="w-full bg-slate-300 text-white py-3 rounded-lg font-bold cursor-not-allowed transition">
+                确认并继续
+            </button>
+        </div>
+    </div>
 
     <div id="registration-modal" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[95vh]">
@@ -156,7 +186,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, where, Timestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+        // 增加 doc, setDoc, updateDoc 引用
+        import { getFirestore, collection, addDoc, doc, setDoc, getDocs, query, orderBy, limit, where, Timestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
@@ -177,16 +208,16 @@
         const state = {
             studentId: null,
             sessionId: null,
+            dbDocId: null, // 关键：存储Firebase文档的ID，用于覆盖更新，防止重复
+            
             examData: null,
             currentQIndex: 0,
             answers: {},
+            surveyResponses: {}, // 存储问卷答案 { q_idx: confidence_score }
             
             startTime: null,
             isTracking: false,
-            
-            // 修正：增加全局轨迹缓存 (解决数据丢失问题)
             globalTrace: [], 
-
             logs: {
                 reading_logs: [],
                 answering_logs: [],
@@ -194,7 +225,10 @@
             },
             
             currentPhase: 'reading',
-            hasEnteredAnswerZone: false
+            hasEnteredAnswerZone: false,
+
+            // 临时状态
+            tempSelectedRating: null
         };
 
         // -----------------------------------------------------------
@@ -207,6 +241,7 @@
             return `${name.replace(/\s+/g, '')}_${gender}_${age}_${month}${day}`;
         }
 
+        // 注册表单校验
         const checkboxes = document.querySelectorAll('.consent-check');
         const startBtn = document.getElementById('btn-start-exam');
         checkboxes.forEach(cb => cb.addEventListener('change', () => {
@@ -227,7 +262,6 @@
         // -----------------------------------------------------------
         async function loadExamData() {
             try {
-                // 读取根目录 reading_materials (匹配 Admin 修正后的路径)
                 const readingRef = collection(db, "reading_materials");
                 const qPassage = query(readingRef, orderBy("created_at", "desc"), limit(1));
                 const passageSnapshot = await getDocs(qPassage);
@@ -240,7 +274,6 @@
                 const passageDoc = passageSnapshot.docs[0];
                 const passageData = passageDoc.data();
 
-                // 读取根目录 questions
                 const questionsRef = collection(db, "questions");
                 const qQuestions = query(questionsRef, where("passage_id", "==", passageDoc.id));
                 const questionsSnapshot = await getDocs(qQuestions);
@@ -253,7 +286,6 @@
                     passage: {
                         id: passageDoc.id,
                         title: passageData.title || "Untitled",
-                        // 优先读取 content_html
                         content: passageData.content_html || passageData.content || "<p>No content.</p>"
                     },
                     questions: questions
@@ -280,7 +312,7 @@
             document.addEventListener('mousemove', (e) => {
                 if (!state.isTracking) return;
                 const now = performance.now();
-                if (now - lastTime < 33) return; // ~30ms 采样
+                if (now - lastTime < 33) return; 
                 lastTime = now;
 
                 let currentZone = 'neutral';
@@ -304,11 +336,8 @@
                 const t = Math.round(now - state.startTime);
                 const point = { t, x: Math.round(e.clientX), y: Math.round(e.clientY), scroll: scrollY, zone: currentZone };
 
-                // 1. 存入当前题目分段日志
                 if (state.currentPhase === 'reading') state.logs.reading_logs.push(point);
                 else state.logs.answering_logs.push(point);
-
-                // 2. 修正：存入全局总日志 (供最后提交使用)
                 state.globalTrace.push(point);
 
             }, { passive: true });
@@ -322,7 +351,6 @@
         }
 
         async function flushLogs() {
-            // 上传分段日志 (Process Mining)
             const currentQ = state.examData.questions[state.currentQIndex];
             const payload = {
                 session_id: state.sessionId,
@@ -347,7 +375,7 @@
         }
 
         // -----------------------------------------------------------
-        // 6. 渲染与提交
+        // 6. 渲染与交互
         // -----------------------------------------------------------
         function renderInterface() {
             document.getElementById('passage-title').innerText = state.examData.passage.title;
@@ -364,7 +392,6 @@
             container.innerHTML = '';
 
             const labels = ['A', 'B', 'C', 'D'];
-            // 兼容数组格式或独立字段格式
             let optionsArray = (q.options && Array.isArray(q.options)) 
                 ? q.options 
                 : [q.option_a, q.option_b, q.option_c, q.option_d];
@@ -394,7 +421,6 @@
             state.answers[qIndex] = answer;
             document.querySelectorAll('.option-card').forEach(opt => opt.classList.remove('selected'));
             cardElement.classList.add('selected');
-            logAction('select_option', { q_idx: qIndex, ans: answer });
         }
 
         function updatePhaseDisplay() {
@@ -408,19 +434,81 @@
         }
 
         // -----------------------------------------------------------
-        // 7. 提交与评分核心逻辑 (修正重点)
+        // 7. 问卷逻辑 (Survey Logic)
+        // -----------------------------------------------------------
+        
+        // 评分按钮点击
+        document.querySelectorAll('.rating-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.tempSelectedRating = btn.getAttribute('data-val');
+                
+                const confirmBtn = document.getElementById('btn-confirm-survey');
+                confirmBtn.disabled = false;
+                confirmBtn.classList.remove('bg-slate-300', 'cursor-not-allowed');
+                confirmBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white');
+            });
+        });
+
+        // 拦截“下一题”点击 -> 显示问卷
+        document.getElementById('btn-next').addEventListener('click', async () => {
+            // 校验是否选择了答案
+            if (!state.answers[state.currentQIndex]) {
+                alert("请先选择一个答案。");
+                return;
+            }
+
+            // 打开问卷 Modal
+            const modal = document.getElementById('survey-modal');
+            modal.classList.remove('hidden');
+            
+            // 重置问卷状态
+            state.tempSelectedRating = null;
+            document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+            const confirmBtn = document.getElementById('btn-confirm-survey');
+            confirmBtn.disabled = true;
+            confirmBtn.classList.add('bg-slate-300', 'cursor-not-allowed');
+            confirmBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        });
+
+        // 确认问卷 -> 执行真正的翻页/提交
+        document.getElementById('btn-confirm-survey').addEventListener('click', async () => {
+            const modal = document.getElementById('survey-modal');
+            
+            // 1. 记录问卷数据
+            state.surveyResponses[state.currentQIndex] = parseInt(state.tempSelectedRating);
+            logAction('confidence_survey', { q_idx: state.currentQIndex, rating: state.tempSelectedRating });
+
+            // 2. 关闭 Modal
+            modal.classList.add('hidden');
+
+            // 3. 上传当前题目日志
+            await flushLogs();
+
+            // 4. 判断是下一题还是提交
+            if (state.currentQIndex < state.examData.questions.length - 1) {
+                // Next Question
+                state.currentQIndex++;
+                renderQuestion(state.currentQIndex);
+                document.getElementById('question-aoi').scrollTop = 0;
+            } else {
+                // Submit Final
+                submitFinalExamData();
+            }
+        });
+
+        // -----------------------------------------------------------
+        // 8. 最终提交 (解决双份数据问题)
         // -----------------------------------------------------------
         async function submitFinalExamData() {
-            if(!confirm("确认提交试卷吗？")) return;
-
-            // 1. 计算评分 (前端简单评分)
+            // 计算评分
             let score = 0;
             let gradingDetails = [];
             const labels = ['A', 'B', 'C', 'D'];
 
             state.examData.questions.forEach((q, idx) => {
                 const userAns = state.answers[idx];
-                // 题目中 correct_index 是 0/1/2/3，转为 ABCD
                 const correctAnsChar = labels[q.correct_index]; 
                 const isCorrect = (userAns === correctAnsChar);
                 if(isCorrect) score++;
@@ -429,41 +517,62 @@
                     q_id: q.id,
                     user_answer: userAns || null,
                     correct_answer: correctAnsChar,
-                    is_correct: isCorrect
+                    is_correct: isCorrect,
+                    confidence_rating: state.surveyResponses[idx] || null // 关联自信度
                 });
             });
 
-            // 2. 构建最终数据包
-            // 修正：包含 mouse_trace (全局) 和 grading (评分)
+            // 构建主数据包
             const finalPayload = {
                 session_id: state.sessionId,
-                student_id: state.studentId,
-                answers: state.answers, // 原始答案
+                student_id: state.studentId, 
+                user_id: state.studentId, // 关键：映射 user_id 给 Admin 显示
                 
-                // 新增：Admin端期待的详细数据
-                mouse_trace: state.globalTrace, // 完整的30ms采样轨迹
+                answers: state.answers,
+                mouse_trace: state.globalTrace,
                 grading: {
                     total_score: score,
                     total_questions: state.examData.questions.length,
                     details: gradingDetails
                 },
-                
-                finished_at: Timestamp.now(),
+                // 确保时间是 Update 时间
+                submitted_at: Timestamp.now(), 
                 status: "completed",
                 duration_seconds: (performance.now() - state.startTime) / 1000
             };
 
+            // 独立问卷数据包
+            const surveyPayload = {
+                student_id: state.studentId,
+                session_id: state.sessionId,
+                responses: state.surveyResponses,
+                uploaded_at: Timestamp.now()
+            };
+
             try {
-                await addDoc(collection(db, "exam_submissions"), finalPayload);
-                alert(`考试结束！\n您的得分: ${score}/${state.examData.questions.length}`);
+                // 1. 更新主记录 (解决双份数据问题：使用 setDoc 覆盖之前的 started 记录)
+                if (state.dbDocId) {
+                    const docRef = doc(db, "exam_submissions", state.dbDocId);
+                    await setDoc(docRef, finalPayload, { merge: true });
+                } else {
+                    // 容错：如果没有ID（极少情况），则新建
+                    await addDoc(collection(db, "exam_submissions"), finalPayload);
+                }
+
+                // 2. 上传问卷 (使用指定 ID 命名: studentId_questionnaire)
+                const surveyDocId = `${state.studentId}_questionnaire`;
+                await setDoc(doc(db, "questionnaires", surveyDocId), surveyPayload);
+
+                alert(`考试结束！\n您的得分: ${score}/${state.examData.questions.length}\n问卷已上传。`);
                 window.location.reload();
             } catch (e) {
+                console.error(e);
                 alert("上传失败: " + e.message);
             }
         }
 
         // -----------------------------------------------------------
-        // 启动逻辑
+        // 9. 启动逻辑
         // -----------------------------------------------------------
         document.getElementById('reg-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -480,14 +589,17 @@
             document.getElementById('system-status').innerText = "系统就绪";
             document.getElementById('btn-start-exam').innerText = "正在初始化...";
 
+            // 注册：创建初始文档，并保存 ID
             try {
-                await addDoc(collection(db, "exam_submissions"), {
+                const docRef = await addDoc(collection(db, "exam_submissions"), {
                     session_id: state.sessionId,
                     student_id: state.studentId,
+                    user_id: state.studentId, // 这里也加上 user_id
                     meta: { name, gender, age, grade },
                     started_at: Timestamp.now(),
                     status: "started"
                 });
+                state.dbDocId = docRef.id; // 关键：保存ID供后续覆盖使用
             } catch(err) { console.warn("Meta upload failed", err); }
 
             const loaded = await loadExamData();
@@ -506,16 +618,6 @@
             }
         });
 
-        document.getElementById('btn-next').addEventListener('click', async () => {
-            await flushLogs();
-            if (state.currentQIndex < state.examData.questions.length - 1) {
-                state.currentQIndex++;
-                renderQuestion(state.currentQIndex);
-                document.getElementById('question-aoi').scrollTop = 0;
-            } else {
-                submitFinalExamData();
-            }
-        });
     </script>
 </body>
 </html>
