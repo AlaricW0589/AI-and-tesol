@@ -6,49 +6,63 @@
     <title>CET-6 阅读认知评估系统 (Research Client)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // 配置 Tailwind 以减少控制台警告
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        clifford: '#da373d',
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* 
-         * 交互约束与反作弊样式 
-         */
-      .unselectable {
-            -webkit-user-select: none; /* Safari */
-            -moz-user-select: none;    /* Firefox */
-            -ms-user-select: none;     /* IE10+/Edge */
-            user-select: none;         /* Standard */
+        /* 交互约束：禁止选中文本，防止复制 */
+       .unselectable {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
             cursor: default;
         }
 
-        /* 阅读区样式：提供类似纸质阅读的沉浸感 */
-      .prose-content {
+        /* 阅读区排版优化 */
+       .prose-content {
             font-family: 'Georgia', 'Cambria', serif;
             line-height: 1.8;
             font-size: 1.05rem;
             color: #1e293b;
         }
         
-        /* 选项交互动效 */
-      .option-card {
+       .prose-content p {
+            margin-bottom: 1.5em;
+        }
+
+        /* 选项卡片样式 */
+       .option-card {
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-      .option-card:hover {
+       .option-card:hover {
             transform: translateX(4px);
         }
-      .option-card.selected {
+       .option-card.selected {
             background-color: #eff6ff;
             border-color: #3b82f6;
             box-shadow: 0 0 0 1px #3b82f6;
         }
 
-        /* 模态框样式 */
-      .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.5);
+        /* 模态框背景 */
+       .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
         }
         
-        /* 状态指示灯 */
-      .status-dot {
+        /* 状态呼吸灯 */
+       .status-dot {
             height: 8px;
             width: 8px;
             background-color: #22c55e;
@@ -93,7 +107,7 @@
         <section id="reading-aoi" data-aoi="reading" class="w-7/12 p-8 lg:p-12 overflow-y-auto relative scroll-smooth bg-[#fafafa]">
             <div class="max-w-3xl mx-auto bg-white shadow-sm p-10 min-h-full rounded-sm border border-slate-100">
                 <h1 id="passage-title" class="text-2xl font-bold text-slate-800 mb-6 font-serif">
-                    <i class="fa-solid fa-circle-notch fa-spin text-blue-500 mr-2"></i>Loading Passage...
+                    <i class="fa-solid fa-circle-notch fa-spin text-blue-500 mr-2"></i>Loading...
                 </h1>
                 <article id="passage-content" class="prose-content text-slate-600">
                     </article>
@@ -113,7 +127,7 @@
                 </div>
 
                 <div id="question-container" class="space-y-6">
-                    <h3 id="q-stem" class="text-lg font-medium text-slate-800 leading-relaxed">Preparing Exam Data...</h3>
+                    <h3 id="q-stem" class="text-lg font-medium text-slate-800 leading-relaxed">正在准备试题数据...</h3>
                     
                     <div id="options-list" class="space-y-3">
                         </div>
@@ -129,14 +143,14 @@
     </main>
 
     <div id="registration-modal" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[95vh]">
             <div class="p-6 bg-blue-600 text-white">
                 <h2 class="text-2xl font-bold">实验注册</h2>
                 <p class="text-blue-100 text-sm mt-1">Cognitive Hesitation Analysis - Participant Entry</p>
             </div>
             
             <div class="p-8 overflow-y-auto">
-                <form id="reg-form" class="space-y-6">
+                <form id="reg-form" class="space-y-5">
                     <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">姓名 (拼音/英文)</label>
@@ -156,7 +170,14 @@
                         </div>
                         <div class="col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">年级</label>
-                            <input type="text" id="reg-grade" placeholder="e.g. 大三 / Junior" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                            <select id="reg-grade" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                                <option value="" disabled selected>请选择年级</option>
+                                <option value="Freshman">大一 (Freshman)</option>
+                                <option value="Sophomore">大二 (Sophomore)</option>
+                                <option value="Junior">大三 (Junior)</option>
+                                <option value="Senior">大四 (Senior)</option>
+                                <option value="Graduate">研究生 (Graduate)</option>
+                            </select>
                         </div>
                     </div>
 
@@ -165,24 +186,24 @@
                     <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm text-gray-600 space-y-3">
                         <h4 class="font-bold text-gray-800">知情同意与声明 (Informed Consent)</h4>
                         
-                        <label class="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" id="check-awake" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
+                        <label class="flex items-start gap-3 cursor-pointer select-none">
+                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
                             <span>我确认当前处于<strong>清醒状态</strong> (Alert & Awake)，无过度疲劳或酒精影响。</span>
                         </label>
 
-                        <label class="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" id="check-research" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
+                        <label class="flex items-start gap-3 cursor-pointer select-none">
+                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
                             <span>我知情并同意将我的答题过程数据（包括鼠标轨迹、停留时间等）用于<strong>学术研究</strong>。</span>
                         </label>
 
-                        <label class="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" id="check-privacy" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
+                        <label class="flex items-start gap-3 cursor-pointer select-none">
+                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
                             <span>我了解系统会对我的身份进行<strong>匿名化处理</strong>，研究组承诺严格保护我的隐私数据。</span>
                         </label>
                     </div>
 
-                    <button type="submit" id="btn-start-exam" disabled class="w-full bg-gray-300 text-white py-3 rounded-lg font-bold transition cursor-not-allowed">
-                        同意条款并开始答题
+                    <button type="submit" id="btn-start-exam" disabled class="w-full bg-gray-300 text-white py-3 rounded-lg font-bold transition duration-200 cursor-not-allowed">
+                        请勾选上述所有条款
                     </button>
                 </form>
             </div>
@@ -261,24 +282,29 @@
             return `${cleanName}_${gender}_${age}_${month}${day}`;
         }
 
-        // 知情同意复选框逻辑
+        // 知情同意复选框逻辑 - 修复了之前的逻辑，确保脚本加载后能正确绑定
         const checkboxes = document.querySelectorAll('.consent-check');
         const startBtn = document.getElementById('btn-start-exam');
 
+        function checkConsent() {
+            // 检查是否所有复选框都被选中
+            const allChecked = Array.from(checkboxes).every(c => c.checked);
+            if (allChecked) {
+                startBtn.disabled = false;
+                startBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+                startBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                startBtn.innerText = "同意条款并开始答题";
+            } else {
+                startBtn.disabled = true;
+                startBtn.classList.add('bg-gray-300', 'cursor-not-allowed');
+                startBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                startBtn.innerText = "请勾选上述所有条款";
+            }
+        }
+
+        // 绑定监听器
         checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                // 检查是否所有复选框都被选中
-                const allChecked = Array.from(checkboxes).every(c => c.checked);
-                if (allChecked) {
-                    startBtn.disabled = false;
-                    startBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
-                    startBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                } else {
-                    startBtn.disabled = true;
-                    startBtn.classList.add('bg-gray-300', 'cursor-not-allowed');
-                    startBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                }
-            });
+            cb.addEventListener('change', checkConsent);
         });
 
         // -----------------------------------------------------------
@@ -346,7 +372,7 @@
             } catch (error) {
                 console.error("Error loading exam data:", error);
                 document.getElementById('passage-title').innerText = "加载失败";
-                alert("无法连接到数据库，请刷新重试。");
+                document.getElementById('passage-content').innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
                 return false;
             }
         }
@@ -375,12 +401,13 @@
                 let currentZone = 'neutral';
                 let scrollY = 0;
 
+                // 简单的碰撞检测
                 if (readingZone.contains(e.target)) {
                     currentZone = 'reading';
                     scrollY = readingZone.scrollTop;
                 } else if (questionZone.contains(e.target)) {
                     currentZone = 'answering';
-                    scrollY = questionZone.scrollTop; // 虽然答题区通常不滚动，但也记录
+                    scrollY = questionZone.scrollTop; 
                 }
 
                 // 状态机：首次进入答题区触发 Phase Switch
@@ -443,7 +470,6 @@
                 q_index: state.currentQIndex
             };
 
-            // 如果数据量过大，可能会报错。生产环境建议压缩或拆分，这里直接存入。
             // 清空本地缓存，防止重复发送
             state.logs.reading_logs =;
             state.logs.answering_logs =;
@@ -457,7 +483,6 @@
                 console.log(`Logs flushed for Q${state.currentQIndex + 1}`);
             } catch (e) {
                 console.error("Failed to upload logs:", e);
-                // 简单重试机制：如果失败放回队列 (简化处理: 暂不放回，避免死循环)
             }
         }
 
@@ -484,20 +509,19 @@
             document.getElementById('q-stem').innerText = q.stem;
             container.innerHTML = ''; // 清空旧选项
 
-            // 渲染选项 (假设 options 存储为对象 {option_a: "...", option_b: "..."})
-            // 这里我们需要适配 Admin 端的数据结构。Admin 端可能是 opt_a, opt_b... 
-            // 为了通用性，我们假设 options 是个数组或者固定的 key
-            
+            // 修正后的标签数组
             const labels =;
-            // 尝试构建选项数组
+            
+            // 尝试构建选项数组 (兼容 admin 端可能的数据结构)
             const optionsArray = [q.option_a, q.option_b, q.option_c, q.option_d];
 
             optionsArray.forEach((optText, idx) => {
-                if (!optText) return; // Skip empty
+                if (!optText) return; 
 
                 const div = document.createElement('div');
                 div.className = `option-card border border-slate-200 rounded-lg p-4 cursor-pointer flex items-start gap-3 hover:border-blue-400 group`;
-                div.onclick = () => selectOption(index, labels[idx]);
+                // 使用闭包捕获 idx
+                div.onclick = (e) => selectOption(index, labels[idx], e.currentTarget);
                 
                 div.innerHTML = `
                     <div class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors bg-white mt-0.5">
@@ -521,14 +545,14 @@
             }
         }
 
-        function selectOption(qIndex, answer) {
+        function selectOption(qIndex, answer, cardElement) {
             // 记录答案
-            state.answers.id] = answer;
+            state.answers[qIndex] = answer;
             
             // UI 更新
             const options = document.querySelectorAll('.option-card');
             options.forEach(opt => opt.classList.remove('selected'));
-            event.currentTarget.classList.add('selected');
+            cardElement.classList.add('selected');
 
             // 记录事件
             logAction('select_option', { q_idx: qIndex, ans: answer });
@@ -571,6 +595,11 @@
             document.getElementById('display-student-id').innerText = state.studentId;
             document.getElementById('system-status').innerText = "系统就绪";
 
+            // 按钮变更为加载状态
+            const btn = document.getElementById('btn-start-exam');
+            btn.innerText = "正在初始化...";
+            btn.disabled = true;
+
             // 2. 上传用户元数据
             try {
                 await addDoc(collection(db, "exam_submissions"), {
@@ -591,6 +620,9 @@
                 document.getElementById('btn-next').classList.remove('hidden');
                 startTracking(); // 启动监听
                 startTimer();
+            } else {
+                btn.innerText = "初始化失败，请重试";
+                btn.disabled = false;
             }
         });
 
