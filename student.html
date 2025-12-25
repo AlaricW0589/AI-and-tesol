@@ -110,7 +110,7 @@
                     <i class="fa-solid fa-circle-notch fa-spin text-blue-500 mr-2"></i>Loading...
                 </h1>
                 <article id="passage-content" class="prose-content text-slate-600">
-                    </article>
+                </article>
             </div>
         </section>
 
@@ -130,7 +130,7 @@
                     <h3 id="q-stem" class="text-lg font-medium text-slate-800 leading-relaxed">正在准备试题数据...</h3>
                     
                     <div id="options-list" class="space-y-3">
-                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -258,9 +258,9 @@
             questionStartTime: 0, // Current question start time
             isTracking: false,
             logs: {
-                reading_logs:, // Trajectory in reading area
-                answering_logs:,// Trajectory in answer area
-                transitions:   // Clicks, phase changes, scrolls
+                reading_logs: [], // Trajectory in reading area - 修复：添加 []
+                answering_logs: [],// Trajectory in answer area - 修复：添加 []
+                transitions: []   // Clicks, phase changes, scrolls - 修复：添加 []
             },
             
             // 状态机
@@ -282,7 +282,7 @@
             return `${cleanName}_${gender}_${age}_${month}${day}`;
         }
 
-        // 知情同意复选框逻辑 - 修复了之前的逻辑，确保脚本加载后能正确绑定
+        // 知情同意复选框逻辑
         const checkboxes = document.querySelectorAll('.consent-check');
         const startBtn = document.getElementById('btn-start-exam');
 
@@ -324,7 +324,7 @@
                     return false;
                 }
 
-                const passageDoc = passageSnapshot.docs;
+                const passageDoc = passageSnapshot.docs[0];
                 const passageId = passageDoc.id;
                 const passageData = passageDoc.data();
 
@@ -333,7 +333,7 @@
                 const qQuestions = query(questionsRef, where("passage_id", "==", passageId));
                 const questionsSnapshot = await getDocs(qQuestions);
 
-                let questions =;
+                let questions = []; // 修复：添加 []
                 questionsSnapshot.forEach(doc => {
                     questions.push({
                         id: doc.id,
@@ -343,24 +343,18 @@
 
                 // 按创建时间排序题目 (确保顺序正确)
                 questions.sort((a, b) => {
-                    const tA = a.created_at?.seconds |
-
-| 0;
-                    const tB = b.created_at?.seconds |
-
-| 0;
+                    // 修复：使用 || 处理未定义情况
+                    const tA = a.created_at?.seconds || 0;
+                    const tB = b.created_at?.seconds || 0;
                     return tA - tB;
                 });
 
                 state.examData = {
                     passage: {
                         id: passageId,
-                        title: passageData.title |
-
-| "Untitled Passage",
-                        content: passageData.content |
-
-| "<p>No content available.</p>"
+                        // 修复：合并被截断的 || 运算符
+                        title: passageData.title || "Untitled Passage",
+                        content: passageData.content || "<p>No content available.</p>"
                     },
                     questions: questions
                 };
@@ -471,9 +465,11 @@
             };
 
             // 清空本地缓存，防止重复发送
-            state.logs.reading_logs =;
-            state.logs.answering_logs =;
-            state.logs.transitions =;
+            // 修复：添加 [] 初始化
+            state.logs.reading_logs = [];
+            state.logs.answering_logs = [];
+            state.logs.transitions = [];
+            
             state.hasEnteredAnswerZone = false; // 重置 AOI 状态供下一题使用
             state.currentPhase = 'reading';     // 重置为阅读阶段
 
@@ -509,8 +505,8 @@
             document.getElementById('q-stem').innerText = q.stem;
             container.innerHTML = ''; // 清空旧选项
 
-            // 修正后的标签数组
-            const labels =;
+            // 修复：定义标签数组
+            const labels = ['A', 'B', 'C', 'D'];
             
             // 尝试构建选项数组 (兼容 admin 端可能的数据结构)
             const optionsArray = [q.option_a, q.option_b, q.option_c, q.option_d];
