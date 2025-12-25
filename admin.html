@@ -25,7 +25,7 @@
        
        /* Toast 通知样式 */
        #toast-container {
-           position: fixed; top: 20px; right: 20px; z-index: 200;
+           position: fixed; top: 20px; right: 20px; z-index: 100;
            display: flex; flex-direction: column; gap: 10px;
        }
        .toast {
@@ -45,16 +45,6 @@
            display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px);
        }
        
-       /* Login Overlay (High Z-Index) */
-       #login-overlay {
-           position: fixed; inset: 0; background: #0f172a; z-index: 150;
-           display: flex; align-items: center; justify-content: center;
-           transition: opacity 0.5s ease-in-out;
-       }
-       #login-overlay.hidden-overlay {
-           opacity: 0; pointer-events: none;
-       }
-       
        /* Navigation Active State */
        .nav-item.active { background-color: #2563eb; color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
        .nav-item.inactive { color: #94a3b8; }
@@ -63,49 +53,8 @@
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex">
 
-    <!-- Toast Container -->
     <div id="toast-container"></div>
 
-    <!-- Login Security Overlay -->
-    <div id="login-overlay">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-96 max-w-full text-center relative overflow-hidden">
-            <div class="h-1.5 absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
-            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-700 text-2xl">
-                <i class="fa-solid fa-lock"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">安全访问限制</h2>
-            <p class="text-slate-500 text-sm mb-6">请输入管理员凭证以解锁控制台</p>
-            
-            <form id="admin-login-form" class="space-y-4 text-left">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">管理员邮箱</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-envelope absolute left-3 top-3 text-slate-400 text-xs"></i>
-                        <input type="email" id="login-email" required value="moyihuafu@outlook.com"
-                            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">密码</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-key absolute left-3 top-3 text-slate-400 text-xs"></i>
-                        <input type="password" id="login-password" required
-                            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
-                    </div>
-                </div>
-                <div id="login-error" class="hidden text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 flex items-center">
-                    <i class="fa-solid fa-circle-exclamation mr-2"></i>
-                    <span id="login-error-text">验证失败</span>
-                </div>
-                <button type="submit" id="btn-login" class="w-full py-2.5 bg-slate-800 text-white font-bold rounded hover:bg-slate-900 transition shadow-lg transform active:scale-95">
-                    验证并进入 <i class="fa-solid fa-arrow-right ml-1"></i>
-                </button>
-            </form>
-            <p class="mt-6 text-[10px] text-slate-400">© 2025 Hesitation Research Lab</p>
-        </div>
-    </div>
-
-    <!-- Confirmation Modal -->
     <div id="confirm-modal" class="modal-overlay">
         <div class="bg-white rounded-lg shadow-2xl p-6 w-96 transform transition-all scale-100">
             <h3 class="text-lg font-bold text-slate-800 mb-2">确认操作</h3>
@@ -117,13 +66,11 @@
         </div>
     </div>
 
-    <!-- Edit Modal (Generic) -->
     <div id="edit-modal" class="modal-overlay">
         <div class="bg-white rounded-lg shadow-2xl p-6 w-[600px] max-h-[90vh] flex flex-col">
             <h3 class="text-lg font-bold text-slate-800 mb-4" id="edit-modal-title">编辑内容</h3>
             <div id="edit-modal-content" class="flex-1 overflow-y-auto space-y-4 pr-2">
-                <!-- Dynamic Content -->
-            </div>
+                </div>
             <div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-slate-100">
                 <button onclick="closeModal('edit-modal')" class="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded transition">取消</button>
                 <button id="edit-save-btn" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition shadow">保存修改</button>
@@ -131,11 +78,10 @@
         </div>
     </div>
 
-    <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20 shrink-0">
         <div class="p-6 border-b border-slate-700">
             <h1 class="text-xl font-bold tracking-wider"><i class="fa-solid fa-layer-group mr-2"></i>CET 参数重构</h1>
-            <p class="text-xs text-slate-400 mt-2">v2.3.0 (Secured)</p>
+            <p class="text-xs text-slate-400 mt-2">v2.2.3 (Stable)</p>
         </div>
         <nav class="flex-1 p-4 space-y-2">
             <div onclick="switchView('entry')" id="nav-entry" class="nav-item active block px-4 py-3 rounded-lg cursor-pointer transition duration-200">
@@ -148,27 +94,19 @@
                 <i class="fa-solid fa-chart-line mr-3"></i> 参数监控 (Monitor)
             </div>
         </nav>
-        
-        <!-- Logout Button -->
-        <div class="p-4 border-t border-slate-700">
-            <button onclick="window.handleLogout()" class="w-full flex items-center justify-center px-4 py-2 bg-slate-800 hover:bg-red-900/50 text-slate-400 hover:text-red-400 rounded transition text-xs font-bold border border-slate-700 hover:border-red-900">
-                <i class="fa-solid fa-right-from-bracket mr-2"></i> 退出登录
-            </button>
-            <div class="mt-3 text-[10px] text-slate-600 text-center">
-                &copy; 2025 Research Lab
-            </div>
+        <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
+            &copy; 2024 Research Lab
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         
-        <!-- ==================== VIEW: ENTRY (录入) ==================== -->
         <div id="view-entry" class="h-full flex flex-col animate-fade-in">
             <header class="bg-white h-16 border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
                 <h2 class="text-lg font-semibold text-slate-700">阅读理解题组录入 (Passage-Based Testlet)</h2>
                 <div class="flex items-center space-x-4">
                     <span id="db-status" class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold border border-yellow-200">
-                        Checking Auth...
+                        Connecting...
                     </span>
                     <button onclick="window.resetAll()" class="text-sm text-red-500 hover:text-red-700 underline">
                         重置所有表单
@@ -177,7 +115,6 @@
             </header>
 
             <div class="flex-1 flex overflow-hidden">
-                <!-- 左侧文章录入 -->
                 <section class="w-5/12 h-full overflow-y-auto p-6 border-r border-slate-200 bg-white">
                     <div class="mb-6">
                         <h3 class="text-sm font-bold text-slate-400 uppercase mb-4 tracking-wider">Step 1: 语篇信息 (Passage Context)</h3>
@@ -226,7 +163,6 @@
                     </div>
                 </section>
 
-                <!-- 右侧题目录入 -->
                 <section class="w-7/12 h-full bg-slate-50 flex flex-col relative">
                     <div id="questions-container" class="flex-1 overflow-y-auto p-6 space-y-4 pb-48">
                         <div id="empty-state" class="flex flex-col items-center justify-center h-64 text-slate-400 border-2 border-dashed border-slate-300 rounded-xl">
@@ -300,7 +236,6 @@
             </div>
         </div>
 
-        <!-- ==================== VIEW: LIBRARY (新增: 题库管理) ==================== -->
         <div id="view-library" class="hidden h-full flex flex-col bg-slate-50 animate-fade-in overflow-hidden">
             <header class="bg-white h-16 border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
                 <h2 class="text-lg font-semibold text-slate-700">题库管理 (Item Bank Library)</h2>
@@ -310,18 +245,15 @@
             </header>
             
             <div class="flex flex-1 overflow-hidden">
-                <!-- 左侧：文章列表 -->
                 <div class="w-1/3 bg-white border-r border-slate-200 flex flex-col">
                     <div class="p-4 border-b border-slate-100 bg-slate-50">
                         <h3 class="text-xs font-bold text-slate-500 uppercase">Passages (Reading Materials)</h3>
                     </div>
                     <div id="lib-passage-list" class="flex-1 overflow-y-auto p-2 space-y-2">
-                        <!-- JS Loaded Items -->
                         <div class="text-center text-slate-400 py-10 text-sm">Loading...</div>
                     </div>
                 </div>
 
-                <!-- 右侧：详情与题目 -->
                 <div class="w-2/3 bg-slate-50 flex flex-col overflow-hidden relative">
                     <div id="lib-detail-empty" class="flex flex-col items-center justify-center h-full text-slate-400">
                         <i class="fa-regular fa-hand-pointer text-4xl mb-3"></i>
@@ -329,7 +261,6 @@
                     </div>
 
                     <div id="lib-detail-content" class="hidden h-full flex flex-col">
-                        <!-- Passage Info Header -->
                         <div class="bg-white p-6 border-b border-slate-200 shadow-sm shrink-0">
                             <div class="flex justify-between items-start">
                                 <div>
@@ -354,19 +285,16 @@
                             </div>
                         </div>
 
-                        <!-- Questions List -->
                         <div class="flex-1 overflow-y-auto p-6">
                             <h3 class="text-sm font-bold text-slate-500 uppercase mb-4">Associated Questions</h3>
                             <div id="view-q-list" class="space-y-3">
-                                <!-- JS Loaded Questions -->
-                            </div>
+                                </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== VIEW: MONITOR (监控) ==================== -->
         <div id="view-monitor" class="hidden h-full flex flex-col bg-slate-50 p-8 overflow-y-auto animate-fade-in">
             <header class="flex justify-between items-end mb-8">
                 <div>
@@ -445,123 +373,51 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        // 引入 signInWithEmailAndPassword 和 signOut
-        import { getAuth, signInWithCustomToken, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, doc, writeBatch, serverTimestamp, getDocs, query, orderBy, limit, deleteDoc, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // =========================================================================================
         // Config & Init
         // =========================================================================================
-        let firebaseConfig;
-        if (typeof __firebase_config !== 'undefined') {
-            try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) { console.error(e); }
-        }
-        if (!firebaseConfig) {
-             firebaseConfig = {
-                apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
-                authDomain: "hesitation-research.firebaseapp.com",
-                projectId: "hesitation-research",
-                storageBucket: "hesitation-research.firebasestorage.app",
-                messagingSenderId: "633469376688",
-                appId: "1:633469376688:web:dc26878c070a05a35b4375"
-            };
-        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
+            authDomain: "hesitation-research.firebaseapp.com",
+            projectId: "hesitation-research",
+            storageBucket: "hesitation-research.firebasestorage.app",
+            messagingSenderId: "633469376688",
+            appId: "1:633469376688:web:dc26878c070a05a35b4375"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let currentUser = null;
 
-        // =========================================================================================
-        // Auth Logic (Updated for Forced Login)
-        // =========================================================================================
+        // Auth
         const initAuth = async () => {
             try {
-                // 如果环境提供了自定义 Token（例如从其他页面跳转过来携带的），尝试自动登录
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } 
-                // 注意：移除了 signInAnonymously。现在我们要求显式登录。
+                await signInAnonymously(auth);
             } catch (error) {
-                console.error("Auth Init Failed", error);
+                console.error("Auth Failed", error);
+                window.showToast("Auth Failed: " + error.message, "error");
             }
         };
-        
-        // 监听 Auth 状态变化来控制遮罩层显示
         onAuthStateChanged(auth, (user) => {
             const statusEl = document.getElementById('db-status');
-            const overlay = document.getElementById('login-overlay');
-            
             if (user) {
-                // 已登录：隐藏遮罩，进入系统
                 currentUser = user;
-                overlay.classList.add('hidden-overlay');
-                
                 statusEl.className = "px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200";
-                statusEl.innerText = `Admin: ${user.email || 'Verified'}`;
-                
-                // 加载初始数据
-                window.loadLibrary();
+                statusEl.innerText = "DB: Connected";
             } else {
-                // 未登录：显示遮罩，锁定系统
-                currentUser = null;
-                overlay.classList.remove('hidden-overlay');
-                
                 statusEl.className = "px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold border border-red-200";
-                statusEl.innerText = "Locked";
+                statusEl.innerText = "Disconnected";
             }
         });
-        
         initAuth();
 
-        // 登录处理函数
-        const loginForm = document.getElementById('admin-login-form');
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const btn = document.getElementById('btn-login');
-            const errorDiv = document.getElementById('login-error');
-            const errorText = document.getElementById('login-error-text');
-
-            // Reset UI
-            errorDiv.classList.add('hidden');
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 验证中...';
-            btn.disabled = true;
-
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                // 成功后 onAuthStateChanged 会处理 UI 隐藏
-                btn.innerHTML = '验证通过';
-                window.showToast("欢迎回来，管理员", "success");
-            } catch (error) {
-                console.error("Login Failed", error);
-                btn.innerHTML = '验证并进入 <i class="fa-solid fa-arrow-right ml-1"></i>';
-                btn.disabled = false;
-                errorDiv.classList.remove('hidden');
-                
-                // 简单错误映射
-                if (error.code === 'auth/invalid-email') errorText.innerText = "邮箱格式错误";
-                else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') errorText.innerText = "账号或密码错误";
-                else errorText.innerText = "认证失败，请重试";
-            }
-        });
-
-        // 登出处理函数
-        window.handleLogout = async () => {
-            window.openConfirm("确定要退出管理控制台吗？", async () => {
-                try {
-                    await signOut(auth);
-                    window.showToast("已安全退出", "info");
-                    // 退出后 onAuthStateChanged 会重新显示遮罩层
-                } catch (e) {
-                    console.error(e);
-                }
-            });
-        };
-
-        // Helper: Get Ref
+        // -----------------------------------------------------------
+        // FIX: 直接使用根路径，与学生端保持一致
+        // -----------------------------------------------------------
         function getCollectionRef(name) {
             return collection(db, name);
         }
@@ -639,7 +495,7 @@
         };
 
         // =========================================================================================
-        // PART 1: Entry Logic (Existing)
+        // PART 1: Entry Logic
         // =========================================================================================
         document.getElementById('p-content').addEventListener('input', function(e) {
             const text = e.target.value.replace(/<[^>]*>?/gm, '');
@@ -665,26 +521,57 @@
             window.showToast("题目已暂存", "success");
         };
 
+        // -----------------------------------------------------------
+        // FIX: 修复了 TypeError 报错，不再依赖静态 HTML 结构
+        // -----------------------------------------------------------
         function renderStagedQuestions() {
             const container = document.getElementById('questions-container');
-            const emptyState = document.getElementById('empty-state');
-            document.getElementById('batch-count').innerText = stagedQuestions.length;
+            const batchCount = document.getElementById('batch-count');
             
-            if (stagedQuestions.length > 0) emptyState.classList.add('hidden');
-            else { emptyState.classList.remove('hidden'); container.innerHTML = ''; container.appendChild(emptyState); return; }
-            
+            // 1. 先清空容器 (这将删除所有内容，包括之前的 empty-state)
             container.innerHTML = '';
+            
+            // 更新计数
+            batchCount.innerText = stagedQuestions.length;
+
+            // 2. 判断逻辑：如果没有题目，手动插入 Empty State HTML
+            if (stagedQuestions.length === 0) {
+                container.innerHTML = `
+                    <div id="empty-state" class="flex flex-col items-center justify-center h-64 text-slate-400 border-2 border-dashed border-slate-300 rounded-xl animate-fade-in">
+                        <i class="fa-regular fa-folder-open text-4xl mb-3"></i>
+                        <p>暂无关联题目</p>
+                        <p class="text-xs">请在下方表单添加属于该文章的题目</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 3. 如果有题目，循环生成卡片
             stagedQuestions.forEach((q, index) => {
                 const card = document.createElement('div');
                 card.className = "bg-white p-4 rounded-lg shadow-sm border border-slate-200 relative group animate-fade-in mb-3";
+                
+                // 转义特殊字符
+                const safeStem = q.stem.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
                 card.innerHTML = `
-                    <div class="absolute top-2 right-2 text-slate-300 hover:text-red-500 cursor-pointer" onclick="window.removeQuestion(${index})"><i class="fa-solid fa-circle-xmark"></i></div>
-                    <div class="flex items-start justify-between mb-2"><span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Q${index + 1}</span></div>
-                    <p class="text-sm font-semibold text-slate-700 mb-2 truncate">${q.stem}</p>
+                    <div class="absolute top-2 right-2 text-slate-300 hover:text-red-500 cursor-pointer transition" onclick="window.removeQuestion(${index})">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+                    <div class="flex items-start justify-between mb-2">
+                        <span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Q${index + 1}</span>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-700 mb-2 truncate">${safeStem}</p>
+                    <div class="flex gap-2">
+                        ${q.options.map((opt, i) => 
+                            `<span class="text-[10px] px-1.5 py-0.5 rounded border ${i === q.correct_index ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400'}">${String.fromCharCode(65+i)}</span>`
+                        ).join('')}
+                    </div>
                 `;
                 container.appendChild(card);
             });
         }
+
         window.removeQuestion = (i) => { stagedQuestions.splice(i, 1); renderStagedQuestions(); };
         window.resetAll = () => window.openConfirm("清空表单？", () => location.reload());
 
@@ -699,6 +586,7 @@
 
             try {
                 const batch = writeBatch(db);
+                // 修正：现在会写入到根目录 reading_materials
                 const passageRef = doc(getCollectionRef("reading_materials"));
                 batch.set(passageRef, {
                     title: pTitle,
@@ -710,6 +598,7 @@
                     shadow_difficulty: parseFloat(document.getElementById('p-diff').value)
                 });
                 stagedQuestions.forEach(q => {
+                    // 修正：现在会写入到根目录 questions
                     const qRef = doc(getCollectionRef("questions"));
                     batch.set(qRef, { ...q, passage_id: passageRef.id, created_at: serverTimestamp() });
                 });
@@ -723,12 +612,9 @@
         };
 
         // =========================================================================================
-        // PART 2: Library Logic (New)
+        // PART 2: Library Logic
         // =========================================================================================
         window.loadLibrary = async function() {
-            // Check auth before loading
-            if (!currentUser) return; 
-
             const listEl = document.getElementById('lib-passage-list');
             listEl.innerHTML = '<div class="text-center text-slate-400 py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>';
             
@@ -813,13 +699,12 @@
 
             } catch(e) {
                 console.warn(e);
-                // Fallback: fetch all and filter (for no-index environments)
+                // Fallback: fetch all and filter
                 const allQ = await getDocs(getCollectionRef("questions"));
                 qListEl.innerHTML = '';
                 allQ.forEach(doc => {
                     const q = doc.data();
                     if(q.passage_id === id) {
-                        // Render logic (duplicate for fallback simplicity)
                         const qEl = document.createElement('div');
                         qEl.className = "bg-white p-4 rounded border border-slate-200 relative group";
                         qEl.innerHTML = `
@@ -847,7 +732,7 @@
                 // Delete passage
                 await deleteDoc(doc(getCollectionRef("reading_materials"), currentPassageId));
                 
-                // Delete questions (Best effort client side)
+                // Delete questions
                 const snapshot = await getDocs(query(getCollectionRef("questions"), where("passage_id", "==", currentPassageId)));
                 const deletePromises = [];
                 snapshot.forEach(d => deletePromises.push(deleteDoc(d.ref)));
@@ -928,12 +813,9 @@
         };
 
         // =========================================================================================
-        // PART 3: Monitor Logic (Updated with Delete)
+        // PART 3: Monitor Logic
         // =========================================================================================
         window.refreshMonitor = async function() {
-            // Check auth
-            if(!currentUser) return; 
-
             const tbody = document.getElementById('monitor-table-body');
             tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Loading data...</td></tr>';
 
@@ -976,9 +858,9 @@
                 tr.className = "border-b border-slate-100 hover:bg-slate-50 transition";
                 tr.innerHTML = `
                     <td class="p-4 font-mono text-xs text-slate-500">${record.user_id}</td>
-                    <td class="p-4 font-semibold text-slate-700">${record.user_name}</td>
+                    <td class="p-4 font-semibold text-slate-700">${record.user_name || '-'}</td>
                     <td class="p-4 text-xs text-slate-500">${dateStr}</td>
-                    <td class="p-4 text-xs text-slate-500">${Math.round(record.duration_seconds / 60)} min</td>
+                    <td class="p-4 text-xs text-slate-500">${Math.round((record.duration_seconds || 0) / 60)} min</td>
                     <td class="p-4">
                         ${audit.isValid 
                             ? `<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold border border-green-200">Valid</span>` 
@@ -1006,8 +888,8 @@
         };
 
         function validateSession(record) {
-            if (!record.mouse_trace || record.mouse_trace.length === 0) return { isValid: false, reason: "No Trace" };
-            if (record.duration_seconds < 60) return { isValid: false, reason: "Too Short" };
+            // 简单校验逻辑
+            if (!record.answers) return { isValid: false, reason: "No Answers" };
             return { isValid: true, reason: "OK" };
         }
 
@@ -1039,4 +921,3 @@
     </script>
 </body>
 </html>
-
