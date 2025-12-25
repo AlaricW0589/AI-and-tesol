@@ -3,114 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CET Online Assessment | 沉浸式阅读测评</title>
-    
+    <title>CET-6 沉浸式阅读测评系统 (AOI追踪版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* 禁用文本选择，防止复制干扰实验数据 */
-        body { user-select: none; }
-        
-        /* 自定义阅读区的滚动条，提升沉浸感 */
-       .passage-scroll::-webkit-scrollbar { width: 8px; }
-       .passage-scroll::-webkit-scrollbar-track { background: #f8fafc; }
-       .passage-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-       .passage-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        /* 核心布局：禁止整体滚动，采用内部区域独立滚动 */
+        body { 
+            height: 100vh; 
+            overflow: hidden; 
+            user-select: none; /* 防止复制，减少作弊并净化鼠标数据 */
+        }
+
+        /* 左侧阅读区：允许滚动，模拟纸质阅读体验 */
+        #reading-aoi {
+            overflow-y: auto;
+            border-right: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            cursor: text; /* 提示这是文本区 */
+        }
+
+        /* 右侧答题区：固定布局，防止题目跑出视线 */
+        #question-aoi {
+            overflow-y: auto;
+            background-color: #ffffff;
+            cursor: default;
+        }
 
         /* 选中态样式 */
+       .option-card {
+            transition: all 0.2s;
+        }
+       .option-card:hover {
+            background-color: #f1f5f9;
+        }
        .option-card.selected {
-            border-color: #2563eb;
+            border-color: #3b82f6;
             background-color: #eff6ff;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+            box-shadow: 0 0 0 1px #3b82f6;
         }
 
-        /* 加载动画 */
-       .loader {
-            border: 3px solid #f3f3f3;
+        /* 状态指示灯 */
+       .status-dot {
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            border-top: 3px solid #3498db;
-            width: 24px;
-            height: 24px;
-            -webkit-animation: spin 1s linear infinite; /* Safari */
-            animation: spin 1s linear infinite;
+            display: inline-block;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+       .status-reading { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+       .status-answering { background-color: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
     </style>
 </head>
-<body class="bg-gray-100 h-screen flex flex-col overflow-hidden font-sans text-slate-800">
+<body class="text-slate-800 font-sans flex flex-col">
 
-    <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-6 z-20 shadow-sm flex-none">
+    <header class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shadow-sm flex-none">
         <div class="flex items-center space-x-4">
-            <span class="font-bold text-slate-700 tracking-wide">CET-6 Reading Comprehension</span>
-            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-mono">Section C</span>
+            <span class="font-bold text-lg tracking-tight text-slate-700">CET-6 Reading Section</span>
+            <div class="flex items-center text-xs px-3 py-1 bg-slate-100 rounded-full border border-slate-200">
+                <span id="phase-indicator" class="status-dot status-reading mr-2"></span>
+                <span id="phase-text" class="font-mono text-slate-500 font-bold uppercase">Reading Phase</span>
+            </div>
         </div>
-        
-        <div class="flex items-center space-x-6">
-            <div class="text-sm text-gray-500">
-                Question <span id="current-q-num" class="font-bold text-gray-900 text-lg">1</span> / <span id="total-q-num">--</span>
-            </div>
-            <div class="flex items-center space-x-2 px-3 py-1 bg-red-50 rounded-full border border-red-100">
-                <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <span class="text-xs text-red-600 font-bold uppercase">REC</span>
-            </div>
+        <div class="text-sm text-slate-500 font-mono">
+            Time Elapsed: <span id="timer">00:00</span>
         </div>
     </header>
 
-    <main id="exam-interface" class="flex-1 flex overflow-hidden relative opacity-0 transition-opacity duration-500">
+    <main class="flex-1 flex overflow-hidden relative">
         
-        <section id="reading-pane" class="w-1/2 h-full overflow-y-auto passage-scroll bg-white border-r border-gray-200 p-8 lg:p-12 shadow-[inset_-10px_0_20px_-10px_rgba(0,0,0,0.05)] relative" region-id="passage">
-            <div class="max-w-prose mx-auto">
-                <div class="mb-6 pb-4 border-b border-gray-100">
-                    <span id="passage-genre" class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Article Genre</span>
-                    <h1 id="passage-title" class="text-2xl font-serif font-bold text-slate-800 leading-tight">Loading Passage...</h1>
-                </div>
-                
-                <article id="passage-content" class="prose prose-slate prose-lg text-slate-600 leading-loose font-serif">
-                    </article>
+        <section id="reading-aoi" class="w-7/12 p-8 lg:p-12 relative" data-aoi="reading">
+            <div class="max-w-3xl mx-auto">
+                <h1 id="passage-title" class="text-2xl font-serif font-bold mb-6 text-slate-900 leading-tight">
+                    Wait for passage loading...
+                </h1>
+                <div id="passage-content" class="prose prose-slate prose-lg text-justify leading-loose text-slate-600 font-serif">
+                    </div>
             </div>
         </section>
 
-        <section id="item-pane" class="w-1/2 h-full bg-gray-50 flex flex-col relative" region-id="item">
-            
-            <div class="flex-1 overflow-y-auto p-8 lg:p-12 flex flex-col justify-center">
-                <div class="max-w-lg mx-auto w-full">
+        <section id="question-aoi" class="w-5/12 bg-white flex flex-col border-l border-slate-200 relative" data-aoi="answering">
+            <div class="h-1 bg-slate-100 w-full flex-none">
+                <div id="progress-bar" class="h-full bg-blue-600 transition-all duration-500" style="width: 0%"></div>
+            </div>
+
+            <div class="flex-1 p-8 overflow-y-auto">
+                <div class="mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question <span id="q-index">1</span>/5</span>
+                </div>
+                
+                <div id="question-container" class="space-y-6">
+                    <h3 id="q-stem" class="text-lg font-medium text-slate-800">Loading Question...</h3>
                     
-                    <div id="question-card" class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 transition-all duration-300">
-                        <div class="mb-6">
-                            <span class="text-xs font-bold text-blue-600 mb-2 block uppercase">Multiple Choice</span>
-                            <h2 id="q-stem" class="text-lg font-medium text-gray-900 leading-relaxed">
-                                Loading Question...
-                            </h2>
+                    <div id="options-list" class="space-y-3">
                         </div>
-
-                        <div id="options-list" class="space-y-3">
-                            </div>
-                    </div>
-
                 </div>
             </div>
 
-            <div class="bg-white border-t border-gray-200 p-4 flex justify-end items-center flex-none z-10">
-                <button id="btn-next" onclick="nextQuestion()" disabled class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
-                    <span>Next Question</span>
-                    <i class="fa-solid fa-arrow-right ml-2"></i>
+            <div class="p-4 border-t border-slate-100 bg-white flex justify-between items-center flex-none">
+                <button onclick="prevQuestion()" class="text-sm text-slate-400 hover:text-slate-600 font-medium px-4 py-2">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Previous
+                </button>
+                <button id="btn-next" onclick="nextQuestion()" disabled class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-md shadow-blue-200 transition-all disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed">
+                    Next Question <i class="fa-solid fa-arrow-right ml-2"></i>
                 </button>
             </div>
         </section>
 
     </main>
 
-    <div id="loading-screen" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center space-y-4">
-        <div class="loader"></div>
-        <p class="text-gray-500 font-mono text-sm">Initializing Exam Environment...</p>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // *** 配置信息 ***
+        // *** Firebase 配置 (已自动填入您的配置) ***
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
@@ -123,233 +128,237 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // *** 全局状态 (State Management) ***
+        // *** 全局状态管理 ***
         const state = {
-            userId: "user_" + Math.random().toString(36).substr(2, 9), // 模拟匿名用户ID
-            sessionId: Date.now().toString(),
-            examSequence:, // 扁平化的题目序列
-            passagesCache: {}, // 缓存文章内容 {id: data}
-            currentIndex: 0,
+            sessionId: "sess_" + Date.now(),
+            examData: null,          // 包含文章和题目的完整结构
+            currentQIndex: 0,
             
-            // 过程数据临时存储
-            currentLog: {
-                trajectory:, // 鼠标轨迹
-                startTime: 0,
-                passageScrollDepth: 0 // 记录读了多少
-            }
+            // 关键：时空分割状态
+            currentPhase: 'reading', // 'reading' | 'answering'
+            hasEnteredAnswerZone: false, // 是否已经进入过答题区（用于触发首次决策时间）
+            
+            // 过程数据缓存
+            logs: {
+                reading_logs:,    // 纯阅读阶段轨迹 (用于分析PAR)
+                answering_logs:,  // 答题阶段轨迹 (用于分析犹豫)
+                transitions:      // 区域切换事件 (Reading <-> Answering)
+            },
+            
+            startTime: Date.now()
         };
 
-        // *** 1. 初始化：构建考试序列 (Test Assembly) ***
-        async function initExam() {
-            try {
-                // 1.1 获取所有题目
-                // 注意：真实场景下这里应该按Exam ID筛选，此处简化为拉取全量
-                const qSnapshot = await getDocs(collection(db, "questions"));
-                
-                if (qSnapshot.empty) {
-                    alert("No questions found in database.");
-                    return;
-                }
-
-                // 1.2 构建题目队列
-                // 我们需要按 passage_id 对题目进行排序，确保同一篇文章的题目连续出现
-                const rawQuestions =;
-                qSnapshot.forEach(doc => {
-                    rawQuestions.push({ id: doc.id,...doc.data() });
-                });
-
-                // 按文章分组排序 (Passage-Based Testlet Structure)
-                rawQuestions.sort((a, b) => a.passage_id.localeCompare(b.passage_id));
-                state.examSequence = rawQuestions;
-
-                // 1.3 预加载所有相关的文章 (Pre-fetch Passages)
-                const uniquePassageIds =;
-                await Promise.all(uniquePassageIds.map(async (pid) => {
-                    const pDoc = await getDoc(doc(db, "reading_materials", pid));
-                    if (pDoc.exists()) {
-                        state.passagesCache[pid] = pDoc.data();
+        // *** 1. 初始化逻辑 ***
+        async function init() {
+            // 模拟加载一篇CET-6真题数据 (实际应从 Firestore 读取)
+            // 这里为了演示直接构造数据，真实场景请替换为 await getDoc(...)
+            const mockPassage = {
+                title: "The Impact of Artificial Intelligence on Future Employment",
+                content: `<p>The rapid advancement of artificial intelligence (AI) has sparked intense debate regarding its potential impact on the job market. Proponents argue that AI will create new industries and opportunities, much like the Industrial Revolution did in the 19th century. They point to the growing demand for data scientists, AI ethicists, and machine learning engineers as evidence of this shift.</p>
+                          <p>However, critics express concern that AI automation will displace a significant portion of the workforce, particularly in sectors reliant on routine tasks. Manufacturing, transportation, and customer service are cited as industries most at risk. A report by the World Economic Forum predicts that while 85 million jobs may be displaced by 2025, 97 million new roles could emerge.</p>
+                          <p>The key challenge lies in the "reskilling" revolution. Workers displaced by automation must be provided with the training and education necessary to transition into these new roles. Governments and corporations face the daunting task of creating infrastructure to support this massive workforce transition.</p>
+                          <p>Ultimately, the net impact of AI on employment will depend not just on the technology itself, but on the policies and educational systems put in place to manage its integration into society.</p>`,
+                questions:,
+                        correct: 1
+                    },
+                    {
+                        id: "q2",
+                        stem: "Which sectors are mentioned as being most at risk of displacement?",
+                        options:,
+                        correct: 2
                     }
-                }));
-
-                // 1.4 渲染UI
-                document.getElementById('total-q-num').innerText = state.examSequence.length;
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('exam-interface').classList.remove('opacity-0');
-                
-                renderCurrentQuestion();
-
-            } catch (error) {
-                console.error("Init Error:", error);
-                alert("Failed to load exam data. See console.");
-            }
-        }
-
-        // *** 2. 渲染逻辑 (Rendering) ***
-        function renderCurrentQuestion() {
-            const currentQ = state.examSequence[state.currentIndex];
-            const passageData = state.passagesCache[currentQ.passage_id];
-
-            // 2.1 更新文章区 (仅当文章切换时才重绘DOM，优化性能)
-            const passageTitleEl = document.getElementById('passage-title');
-            if (passageTitleEl.innerText!== passageData.title) {
-                passageTitleEl.innerText = passageData.title;
-                document.getElementById('passage-genre').innerText = passageData.genre |
-
-| "Article";
-                document.getElementById('passage-content').innerHTML = passageData.content_html;
-                
-                // 重置滚动条
-                document.getElementById('reading-pane').scrollTop = 0;
-            }
-
-            // 2.2 更新题目区
-            document.getElementById('current-q-num').innerText = state.currentIndex + 1;
-            document.getElementById('q-stem').innerText = currentQ.stem;
-
-            // 2.3 生成选项
-            const optionsContainer = document.getElementById('options-list');
-            optionsContainer.innerHTML = '';
-            
-            currentQ.options.forEach((optText, idx) => {
-                const btn = document.createElement('div');
-                btn.className = "option-card flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-all group";
-                btn.setAttribute('data-index', idx);
-                btn.innerHTML = `
-                    <span class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold text-sm mr-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">${String.fromCharCode(65 + idx)}</span>
-                    <span class="text-sm text-gray-700 flex-1">${optText}</span>
-                `;
-                
-                btn.onclick = () => selectOption(idx);
-                optionsContainer.appendChild(btn);
-            });
-
-            // 2.4 重置状态与开始计时
-            document.getElementById('btn-next').disabled = true;
-            state.currentLog.startTime = Date.now();
-            state.currentLog.trajectory =;
-            state.currentLog.selectedIdx = null;
-        }
-
-        // *** 3. 交互逻辑 (Interaction) ***
-        window.selectOption = function(idx) {
-            // UI更新
-            const cards = document.querySelectorAll('.option-card');
-            cards.forEach(c => c.classList.remove('selected'));
-            cards[idx].classList.add('selected');
-            
-            // 状态更新
-            state.currentLog.selectedIdx = idx;
-            document.getElementById('btn-next').disabled = false;
-        };
-
-        window.nextQuestion = async function() {
-            const btn = document.getElementById('btn-next');
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
-            
-            await submitCurrentData();
-
-            if (state.currentIndex < state.examSequence.length - 1) {
-                state.currentIndex++;
-                renderCurrentQuestion();
-                btn.innerHTML = '<span>Next Question</span><i class="fa-solid fa-arrow-right ml-2"></i>';
-            } else {
-                alert("Exam Completed! Thank you for your participation.");
-                window.location.reload();
-            }
-        };
-
-        // *** 4. 数据提交与阴影参数更新 (Data Submission) ***
-        async function submitCurrentData() {
-            const qData = state.examSequence[state.currentIndex];
-            const pData = state.passagesCache;
-            
-            // 4.1 构建过程数据日志
-            // 注意：这里我们不直接判断对错，而是将选择上传。
-            // 真实的参数更新（Elo）将在后端 Cloud Function 中触发
-            const logData = {
-                session_id: state.sessionId,
-                user_id: state.userId,
-                item_id: qData.id,
-                passage_id: qData.passage_id,
-                
-                // 核心作答数据
-                response: {
-                    selected_index: state.currentLog.selectedIdx,
-                    response_time_ms: Date.now() - state.currentLog.startTime,
-                    timestamp: serverTimestamp()
-                },
-
-                // 行为数据 (用于分析犹豫)
-                behavior_metrics: {
-                    passage_scroll_depth: document.getElementById('reading-pane').scrollTop, // 读到哪了
-                    trajectory_count: state.currentLog.trajectory.length,
-                    // 实际轨迹数据量可能很大，建议压缩或仅存储关键特征
-                    // 这里为了演示，我们截取前1000个点
-                    trajectory_sample: state.currentLog.trajectory.slice(0, 1000) 
-                },
-
-                // 影子参数元数据 (传递给后端算法的上下文)
-                shadow_context: {
-                    current_shadow_b: qData.shadow_parameters?.b_hat |
-
-| 0, // 当前估计的难度
-                    passage_difficulty: pData.shadow_difficulty |
-
-| 0
-                }
+                ]
             };
 
-            // 4.2 写入 Firestore
-            await addDoc(collection(db, "interaction_logs"), logData);
-            console.log("Log saved:", logData);
+            state.examData = mockPassage;
+            renderInterface();
+            startTracking();
+            startTimer();
         }
 
-        // *** 5. 高频轨迹追踪 (Mouse Tracking Engine) ***
-        const readingPane = document.getElementById('reading-pane');
-        const itemPane = document.getElementById('item-pane');
+        function renderInterface() {
+            // 渲染文章
+            document.getElementById('passage-title').innerText = state.examData.title;
+            document.getElementById('passage-content').innerHTML = state.examData.content;
+            renderQuestion();
+        }
 
-        // 节流函数，防止每毫秒都记录
-        let lastTrackTime = 0;
-        const TRACK_INTERVAL = 50; // 50ms = 20Hz 采样率
-
-        document.addEventListener('mousemove', (e) => {
-            const now = Date.now();
-            if (now - lastTrackTime < TRACK_INTERVAL) return;
+        function renderQuestion() {
+            const q = state.examData.questions[state.currentQIndex];
             
-            // 5.1 判定区域 (Context Awareness)
-            let region = 'neutral'; // 空白区域
-            let relativeX = e.clientX;
-            let relativeY = e.clientY;
-
-            // 检测鼠标是否在阅读区
-            const rRect = readingPane.getBoundingClientRect();
-            if (e.clientX >= rRect.left && e.clientX <= rRect.right) {
-                region = 'passage';
-                // 记录相对于阅读内容的Y坐标 (考虑滚动)
-                relativeY = e.clientY + readingPane.scrollTop; 
-            } 
-            // 检测鼠标是否在题目区
-            else {
-                const iRect = itemPane.getBoundingClientRect();
-                if (e.clientX >= iRect.left) {
-                    region = 'item';
-                }
-            }
-
-            // 5.2 记录数据点
-            state.currentLog.trajectory.push({
-                t: now - state.currentLog.startTime, // 相对时间
-                x: Math.round(e.clientX),
-                y: Math.round(e.clientY),
-                r: region, // 语义区域
-                s: readingPane.scrollTop // 同步记录滚动位置
+            // 更新进度
+            document.getElementById('q-index').innerText = state.currentQIndex + 1;
+            document.getElementById('progress-bar').style.width = `${((state.currentQIndex + 1) / state.examData.questions.length) * 100}%`;
+            
+            // 渲染题干
+            document.getElementById('q-stem').innerText = q.stem;
+            
+            // 渲染选项
+            const list = document.getElementById('options-list');
+            list.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const div = document.createElement('div');
+                div.className = "option-card border border-slate-200 rounded-lg p-4 cursor-pointer flex items-start gap-3 hover:border-blue-400 group";
+                div.onclick = () => selectOption(div, idx);
+                
+                div.innerHTML = `
+                    <div class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors bg-white mt-0.5">
+                        ${String.fromCharCode(65 + idx)}
+                    </div>
+                    <div class="text-sm text-slate-700 leading-relaxed">${opt}</div>
+                `;
+                list.appendChild(div);
             });
 
-            lastTrackTime = now;
-        });
+            // 重置状态
+            document.getElementById('btn-next').disabled = true;
+            
+            // 重置本题的阶段标记 (新的一题，重新开始算阅读)
+            state.hasEnteredAnswerZone = false;
+            updatePhaseDisplay('reading');
+        }
+
+        window.selectOption = (el, idx) => {
+            // UI 更新
+            document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('btn-next').disabled = false;
+            
+            // 记录选择事件
+            logAction('select_option', { index: idx });
+        };
+
+        window.nextQuestion = async () => {
+            // 提交本题数据 (上传到 Firestore)
+            await flushLogs();
+
+            if (state.currentQIndex < state.examData.questions.length - 1) {
+                state.currentQIndex++;
+                renderQuestion();
+            } else {
+                alert("Exam Finished!");
+            }
+        };
+
+        // *** 2. 核心：智能AOI追踪系统 ***
+        function startTracking() {
+            const readingZone = document.getElementById('reading-aoi');
+            const questionZone = document.getElementById('question-aoi');
+            
+            // 节流，每50ms记录一次 (20Hz)，避免数据量过大
+            let lastTime = 0;
+            
+            document.addEventListener('mousemove', (e) => {
+                const now = Date.now();
+                
+                // 1. 判定当前区域
+                let currentZone = 'neutral';
+                if (readingZone.contains(e.target)) currentZone = 'reading';
+                if (questionZone.contains(e.target)) currentZone = 'answering';
+
+                // 2. 状态机：检测阶段切换
+                if (currentZone === 'answering' &&!state.hasEnteredAnswerZone) {
+                    // 首次进入答题区：标记为犹豫/决策分析的真正起点
+                    state.hasEnteredAnswerZone = true;
+                    state.currentPhase = 'answering';
+                    updatePhaseDisplay('answering');
+                    
+                    // 记录这一关键时刻
+                    logAction('phase_switch', { from: 'reading', to: 'answering' });
+                } else if (currentZone === 'reading' && state.hasEnteredAnswerZone) {
+                    // 如果已经开始答题却又回到阅读区 -> 这是“回视”(Regression)
+                    // 我们不把阶段切回 reading，而是记录一次 look-back 事件
+                    // 这样不会打断 hesitation 的计算流
+                }
+
+                // 3. 记录轨迹数据
+                if (now - lastTime > 50) {
+                    const point = {
+                        t: now - state.startTime,
+                        x: Math.round(e.clientX),
+                        y: Math.round(e.clientY),
+                        // 记录滚动位置，这对于分析“读到哪一行”至关重要
+                        scroll: currentZone === 'reading'? readingZone.scrollTop : questionZone.scrollTop
+                    };
+
+                    // 分流存储：解决您提出的“污染”问题
+                    if (state.currentPhase === 'reading') {
+                        state.logs.reading_logs.push(point); // 这些是“伴读”数据
+                    } else {
+                        state.logs.answering_logs.push(point); // 这些是“犹豫”数据
+                    }
+                    
+                    lastTime = now;
+                }
+            });
+
+            // 监听滚动事件 (滚动也是重要的阅读行为)
+            readingZone.addEventListener('scroll', () => {
+                if (state.currentPhase === 'reading') {
+                    logAction('scroll', { top: readingZone.scrollTop, zone: 'reading' });
+                }
+            });
+        }
+
+        // *** 辅助功能 ***
+        function updatePhaseDisplay(phase) {
+            const dot = document.getElementById('phase-indicator');
+            const text = document.getElementById('phase-text');
+            
+            if (phase === 'reading') {
+                dot.className = "status-dot status-reading mr-2";
+                text.innerText = "Reading Phase (Tracking Eye-Mouse)";
+                text.className = "font-mono text-emerald-600 font-bold uppercase text-xs";
+            } else {
+                dot.className = "status-dot status-answering mr-2";
+                text.innerText = "Decision Phase (Tracking Hesitation)";
+                text.className = "font-mono text-amber-600 font-bold uppercase text-xs";
+            }
+        }
+
+        function logAction(type, data) {
+            state.logs.transitions.push({
+                type: type,
+                t: Date.now() - state.startTime,
+               ...data
+            });
+        }
+
+        async function flushLogs() {
+            // 这里将数据打包上传 Firestore
+            const packet = {
+                q_id: state.examData.questions[state.currentQIndex].id,
+                session_id: state.sessionId,
+                // 分离上传，后端分析时极其方便
+                reading_trace: state.logs.reading_logs,
+                decision_trace: state.logs.answering_logs, 
+                events: state.logs.transitions,
+                timestamp: serverTimestamp()
+            };
+
+            try {
+                await addDoc(collection(db, "process_logs"), packet);
+                console.log("Logs uploaded:", packet);
+                // 清空缓存
+                state.logs.reading_logs =;
+                state.logs.answering_logs =;
+                state.logs.transitions =;
+            } catch (e) {
+                console.error("Upload failed", e);
+            }
+        }
+
+        function startTimer() {
+            setInterval(() => {
+                const diff = Math.floor((Date.now() - state.startTime) / 1000);
+                const m = Math.floor(diff / 60).toString().padStart(2, '0');
+                const s = (diff % 60).toString().padStart(2, '0');
+                document.getElementById('timer').innerText = `${m}:${s}`;
+            }, 1000);
+        }
 
         // 启动
-        initExam();
+        init();
 
     </script>
 </body>
