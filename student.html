@@ -14,36 +14,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-      /* 全局禁止选中，保持UI整洁 */
+      /* 全局禁止选中 */
       .unselectable {
             -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: default;
         }
-      
-      /* 修正：允许阅读区和题目区进行文本选中/高亮，提高可读性 */
+      /* 允许阅读区和题目区文本选中 */
       .prose-content, #question-container {
-            -webkit-user-select: text !important;
-            -moz-user-select: text !important;
-            -ms-user-select: text !important;
-            user-select: text !important;
-            cursor: text;
+            -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important; cursor: text;
       }
-      /* 选中后的背景色，模仿高亮笔效果 */
-      ::selection {
-            background: #fde047; /* 黄色高亮 */
-            color: #000;
-      }
-
-      .prose-content {
-            font-family: 'Georgia', 'Cambria', serif; line-height: 1.8; font-size: 1.05rem; color: #1e293b;
-        }
+      ::selection { background: #fde047; color: #000; }
+      .prose-content { font-family: 'Georgia', 'Cambria', serif; line-height: 1.8; font-size: 1.05rem; color: #1e293b; }
       .prose-content p { margin-bottom: 1.5em; }
-      
-      .option-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+      .option-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; } 
       .option-card:hover { transform: translateX(4px); }
-      /* 选项本身保持不可选中，防止误选文字影响点击 */
-      .option-card { user-select: none; } 
       .option-card.selected { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
-      
       .modal-overlay { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
       .status-dot {
             height: 8px; width: 8px; background-color: #22c55e; border-radius: 50%; display: inline-block;
@@ -230,16 +214,15 @@
             currentQIndex: 0,
             answers: {},
             surveyResponses: {}, 
-            
-            // 新增：记录所有点击行为的完整历史 (Array of Objects)
-            // 格式: { q_idx: 0, val: 'A', t: 1250 }
             clickHistory: [], 
             
-            // 新增：第一次离开阅读区的时间点
             firstReadingExitAt: null,
-
             startTime: null,
             isTracking: false,
+            
+            // 问卷开启状态，用于暂停轨迹记录
+            isSurveyOpen: false,
+
             globalTrace: [], 
             logs: {
                 reading_logs: [],
@@ -321,7 +304,7 @@
         }
 
         // -----------------------------------------------------------
-        // 5. 轨迹追踪 (含首次离开阅读区判定)
+        // 5. 轨迹追踪
         // -----------------------------------------------------------
         function startTracking() {
             state.isTracking = true;
@@ -330,16 +313,15 @@
             const questionZone = document.getElementById('question-aoi');
 
             document.addEventListener('mousemove', (e) => {
-                if (!state.isTracking) return;
+                // 如果问卷开启，则暂停记录
+                if (!state.isTracking || state.isSurveyOpen) return;
+                
                 const now = performance.now();
                 
-                // 修正：首次离开阅读区判定
-                // 逻辑：如果当前鼠标不在 readingZone 内，且 firstReadingExitAt 尚未记录，则记录
                 if (state.firstReadingExitAt === null) {
                     const isInsideReading = readingZone.contains(e.target);
                     if (!isInsideReading) {
                         state.firstReadingExitAt = Math.round(now - state.startTime);
-                        // 同时也记录一个 log 事件
                         logAction('exit_reading_zone', { t: state.firstReadingExitAt });
                     }
                 }
@@ -375,10 +357,12 @@
             }, { passive: true });
         }
 
+        // 通用日志函数
         function logAction(type, data) {
             state.logs.transitions.push({
                 t: Math.round(performance.now() - state.startTime),
-                type, data
+                type, 
+                data 
             });
         }
 
@@ -413,6 +397,11 @@
             document.getElementById('passage-title').innerText = state.examData.passage.title;
             document.getElementById('passage-content').innerHTML = state.examData.passage.content;
             renderQuestion(0);
+            
+            // 初始化标记：文章ID(1)已开始
+            const initMsg = `${state.examData.passage.title}(1)已开始`;
+            logAction('milestone', initMsg);
+            
             document.getElementById('q-total').innerText = state.examData.questions.length;
         }
 
@@ -451,22 +440,10 @@
 
         function selectOption(qIndex, answer, cardElement) {
             const timestamp = Math.round(performance.now() - state.startTime);
-
-            // 1. 更新当前答案
             state.answers[qIndex] = answer;
-            
-            // 2. 修正：记录点击历史 (包含时间戳)
-            state.clickHistory.push({
-                q_idx: qIndex,
-                val: answer,
-                t: timestamp
-            });
-
-            // 3. UI 更新
+            state.clickHistory.push({ q_idx: qIndex, val: answer, t: timestamp });
             document.querySelectorAll('.option-card').forEach(opt => opt.classList.remove('selected'));
             cardElement.classList.add('selected');
-
-            // 4. 记录Log
             logAction('select_option', { q_idx: qIndex, ans: answer });
         }
 
@@ -481,7 +458,7 @@
         }
 
         // -----------------------------------------------------------
-        // 7. 问卷逻辑
+        // 7. 问卷逻辑 (含 Milestone 标记)
         // -----------------------------------------------------------
         document.querySelectorAll('.rating-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -496,11 +473,23 @@
             });
         });
 
+        // 拦截下一题 -> 记录“已提交” -> 打开问卷 -> 暂停轨迹
         document.getElementById('btn-next').addEventListener('click', async () => {
             if (!state.answers[state.currentQIndex]) {
                 alert("请先选择一个答案。");
                 return;
             }
+
+            // 1. 插入 "已提交" 标记 (例如: CET6-24-1(1)已提交)
+            // 修正：现在点击下一题时立即记录提交，而不是确认问卷时
+            const passageId = state.examData.passage.title;
+            const currentQNum = state.currentQIndex + 1;
+            const submitMsg = `${passageId}(${currentQNum})已提交`;
+            logAction('milestone', submitMsg);
+
+            // 2. 暂停轨迹记录
+            state.isSurveyOpen = true; 
+            
             const modal = document.getElementById('survey-modal');
             modal.classList.remove('hidden');
             
@@ -512,18 +501,36 @@
             confirmBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         });
 
+        // 确认问卷 -> 上传 -> 写入开始标记 -> 下一题
         document.getElementById('btn-confirm-survey').addEventListener('click', async () => {
             const modal = document.getElementById('survey-modal');
+            
+            // 1. 记录问卷答案
             state.surveyResponses[state.currentQIndex] = parseInt(state.tempSelectedRating);
             logAction('confidence_survey', { q_idx: state.currentQIndex, rating: state.tempSelectedRating });
+
+            // 2. 关闭问卷，恢复轨迹记录
+            state.isSurveyOpen = false;
             modal.classList.add('hidden');
+
+            // 3. 上传当前题目数据 (包含问卷期间产生的日志)
             await flushLogs();
 
+            // 4. 切换逻辑
             if (state.currentQIndex < state.examData.questions.length - 1) {
+                // 进入下一题
                 state.currentQIndex++;
+                
+                // 插入 "已开始" 标记 (例如: CET6-24-1(2)已开始)
+                const passageId = state.examData.passage.title;
+                const nextQNum = state.currentQIndex + 1;
+                const startMsg = `${passageId}(${nextQNum})已开始`;
+                logAction('milestone', startMsg);
+                
                 renderQuestion(state.currentQIndex);
                 document.getElementById('question-aoi').scrollTop = 0;
             } else {
+                // 最终提交
                 submitFinalExamData();
             }
         });
@@ -558,10 +565,8 @@
                 
                 answers: state.answers,
                 mouse_trace: state.globalTrace,
-                
-                // 新增数据字段：
-                click_history: state.clickHistory, // 完整点击历史
-                first_reading_exit_at: state.firstReadingExitAt, // 首次离开阅读区时间
+                click_history: state.clickHistory,
+                first_reading_exit_at: state.firstReadingExitAt,
 
                 grading: {
                     total_score: score,
