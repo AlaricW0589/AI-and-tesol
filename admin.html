@@ -176,10 +176,13 @@
     </div>
 
     <script type="module">
+        // ==========================================
+        // 1. Firebase Configuration & Initialization
+        // ==========================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // *** USER PROVIDED CONFIG ***
+        // 请确保这里是你正确的 Firebase 配置
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
@@ -192,147 +195,191 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Local State
-        let stagedQuestions =;
+        // ==========================================
+        // 2. Local State Management
+        // ==========================================
+        // 修复点1：之前代码中数组初始化被截断了，这里补全为
+        let stagedQuestions =; 
 
-        // --- Helper: Word Count ---
-        document.getElementById('p-content').addEventListener('input', (e) => {
-            const text = e.target.value.replace(/<[^>]*>?/gm, '');
+        // ==========================================
+        // 3. Helper Functions
+        // ==========================================
+        
+        // 字数统计辅助函数
+        document.getElementById('p-content').addEventListener('input', function(e) {
+            const text = e.target.value.replace(/<[^>]*>?/gm, ''); // strip HTML
             const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-            document.getElementById('word-count-badge').textContent = `${count} words`;
+            document.getElementById('word-count').innerText = count;
         });
 
-        // --- Logic: Stage Question ---
+        // ==========================================
+        // 4. Question Staging Logic (Local)
+        // ==========================================
+        // 必须挂载到 window 对象上，HTML 中的 onclick 才能访问到
         window.stageQuestion = function() {
+            // Get values
             const stem = document.getElementById('q-stem').value;
-            const opts = Array.from(document.querySelectorAll('.q-opt')).map(i => i.value);
+            const optionInputs = document.querySelectorAll('.q-opt');
+            const options = Array.from(optionInputs).map(input => input.value);
             
-            if (!stem |
-
-| opts.some(o =>!o)) {
-                alert("Please fill in question stem and all options.");
+            // Validation
+            // 修复点2：修复了被断行的逻辑运算符 ||
+            if (!stem || options.some(o =>!o.trim())) {
+                alert("请填写完整的题干和所有选项！");
                 return;
             }
 
-            const qData = {
+            // Create Object
+            const questionData = {
+                id: Date.now(), // Temporary ID for UI
                 stem: stem,
-                options: opts,
+                options: options,
                 correct_index: parseInt(document.getElementById('q-correct').value),
-                bloom: document.getElementById('q-bloom').value,
+                cognitive_dimension: {
+                    bloom_level: document.getElementById('q-bloom').value
+                },
                 // IRT Parameters
-                irt: {
+                irt_parameters: {
                     b: parseFloat(document.getElementById('q-b').value),
                     a: parseFloat(document.getElementById('q-a').value),
                     c: parseFloat(document.getElementById('q-c').value)
+                },
+                // Initial Shadow Params
+                shadow_params: {
+                    b_hat: parseFloat(document.getElementById('q-b').value),
+                    n_exposures: 0,
+                    convergence_score: 0.0
                 }
             };
 
-            stagedQuestions.push(qData);
-            renderList();
-            resetQForm();
+            // Add to state
+            stagedQuestions.push(questionData);
+            renderStagedQuestions();
+            
+            // Clear inputs for next entry (保留参数设定)
+            document.getElementById('q-stem').value = '';
+            optionInputs.forEach(i => i.value = '');
         };
 
-        // --- Logic: Render List ---
-        function renderList() {
-            const container = document.getElementById('questions-list');
+        window.renderStagedQuestions = function() {
+            const container = document.getElementById('questions-container');
             const emptyState = document.getElementById('empty-state');
-            document.getElementById('total-count').textContent = stagedQuestions.length;
-            document.getElementById('next-q-num').textContent = stagedQuestions.length + 1;
+            const batchCount = document.getElementById('batch-count');
 
-            if (stagedQuestions.length > 0) emptyState.classList.add('hidden');
-            
+            if (stagedQuestions.length > 0) {
+                if(emptyState) emptyState.classList.add('hidden');
+            } else {
+                if(emptyState) emptyState.classList.remove('hidden');
+            }
+
+            // Re-render list
             container.innerHTML = '';
-            stagedQuestions.forEach((q, idx) => {
-                const el = document.createElement('div');
-                el.className = "bg-white p-4 rounded-lg shadow-sm border border-slate-200 relative group animate-fade-in";
-                el.innerHTML = `
-                    <div class="absolute top-3 right-3 cursor-pointer text-slate-300 hover:text-red-500" onclick="removeQ(${idx})">
-                        <i class="fa-solid fa-trash"></i>
+            stagedQuestions.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-lg shadow-sm border border-slate-200 relative group animate-fade-in mb-3";
+                card.innerHTML = `
+                    <div class="absolute top-2 right-2 text-slate-300 hover:text-red-500 cursor-pointer" onclick="removeQuestion(${index})">
+                        <i class="fa-solid fa-circle-xmark"></i>
                     </div>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded">Q${idx+1}</span>
-                        <span class="bg-indigo-50 text-indigo-600 text-[10px] font-mono px-1.5 py-0.5 rounded">b:${q.irt.b} a:${q.irt.a}</span>
+                    <div class="flex items-start justify-between mb-2">
+                        <span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Q${index + 1}</span>
+                        <div class="flex space-x-2 text-[10px] text-slate-400 font-mono">
+                            <span title="Difficulty">b:${q.irt_parameters.b}</span>
+                            <span title="Discrimination">a:${q.irt_parameters.a}</span>
+                        </div>
                     </div>
-                    <p class="text-sm font-semibold text-slate-800 mb-2 truncate">${q.stem}</p>
+                    <p class="text-sm font-semibold text-slate-700 mb-2 truncate">${q.stem}</p>
                     <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
-                        ${q.options.map((o, i) => 
-                            `<div class="${i === q.correct_index? 'text-green-600 font-bold' : ''}">${String.fromCharCode(65+i)}. ${o}</div>`
+                        ${q.options.map((opt, i) => 
+                            `<div class="${i === q.correct_index? 'text-green-600 font-bold bg-green-50 rounded px-1' : ''}">${String.fromCharCode(65+i)}. ${opt}</div>`
                         ).join('')}
                     </div>
                 `;
-                container.appendChild(el);
+                container.appendChild(card);
             });
+
+            batchCount.innerText = stagedQuestions.length;
         }
 
-        // --- Logic: Upload Batch ---
-        window.uploadToFirebase = async function() {
-            const btn = document.getElementById('btn-submit');
-            const pTitle = document.getElementById('p-title').value;
-            const pContent = document.getElementById('p-content').value;
+        window.removeQuestion = function(index) {
+            stagedQuestions.splice(index, 1);
+            renderStagedQuestions();
+        };
 
-            if (!pTitle ||!pContent |
-
-| stagedQuestions.length === 0) {
-                alert("Please complete the passage and add at least one question.");
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Uploading...';
-
-            try {
-                const batch = writeBatch(db);
-
-                // 1. Create Passage Ref
-                const passageRef = doc(collection(db, "reading_materials"));
-                batch.set(passageRef, {
-                    title: pTitle,
-                    content_html: pContent,
-                    genre: document.getElementById('p-genre').value,
-                    source: document.getElementById('p-source').value,
-                    shadow_difficulty: parseFloat(document.getElementById('p-diff').value),
-                    created_at: serverTimestamp()
-                });
-
-                // 2. Create Question Refs
-                stagedQuestions.forEach(q => {
-                    const qRef = doc(collection(db, "questions"));
-                    batch.set(qRef, {
-                        passage_id: passageRef.id, // Foreign Key
-                        stem: q.stem,
-                        options: q.options,
-                        correct_index: q.correct_index,
-                        cognitive_dimension: { bloom: q.bloom },
-                        irt_parameters: q.irt,
-                        // Initialize Shadow Params for Elo Engine
-                        shadow_parameters: {
-                            b_hat: q.irt.b, // Start with initial guess
-                            n_exposures: 0,
-                            last_updated: serverTimestamp()
-                        }
-                    });
-                });
-
-                // 3. Commit
-                await batch.commit();
-                alert("Success! Testlet uploaded.");
+        window.resetAll = function() {
+            if(confirm("确定要清空所有内容吗？")) {
                 location.reload();
-
-            } catch (e) {
-                console.error(e);
-                alert("Error: " + e.message);
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Retry Upload';
             }
         };
 
-        window.removeQ = (idx) => { stagedQuestions.splice(idx, 1); renderList(); };
-        window.clearAll = () => { if(confirm("Clear all?")) location.reload(); };
-        function resetQForm() {
-            document.getElementById('q-stem').value = '';
-            document.querySelectorAll('.q-opt').forEach(i => i.value = '');
-        }
+        // ==========================================
+        // 5. Upload Logic (Batch Transaction)
+        // ==========================================
+        window.uploadTestlet = async function() {
+            const btn = document.getElementById('btn-upload');
+            
+            // 1. Validate Passage
+            const pTitle = document.getElementById('p-title').value;
+            const pContent = document.getElementById('p-content').value;
+            
+            // 修复点3：修复了断行的逻辑运算符
+            if (!pTitle ||!pContent || stagedQuestions.length === 0) {
+                alert("请填写文章标题、内容并至少添加一道题目！");
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Uploading...';
+
+            try {
+                // Initialize Batch
+                const batch = writeBatch(db);
+
+                // 2. Prepare Passage Doc
+                const passageRef = doc(collection(db, "reading_materials"));
+                const passageData = {
+                    title: pTitle,
+                    genre: document.getElementById('p-genre').value,
+                    source: document.getElementById('p-source').value,
+                    content_html: pContent,
+                    word_count: parseInt(document.getElementById('word-count').innerText) || 0,
+                    created_at: serverTimestamp(),
+                    shadow_difficulty: parseFloat(document.getElementById('p-diff').value)
+                };
+                batch.set(passageRef, passageData);
+
+                // 3. Prepare Question Docs
+                stagedQuestions.forEach(q => {
+                    const qRef = doc(collection(db, "questions")); // Auto-ID
+                    const finalQData = {
+                        passage_id: passageRef.id, // Foreign Key Link
+                        stem: q.stem,
+                        options: q.options,
+                        correct_index: q.correct_index, 
+                        cognitive_dimension: q.cognitive_dimension,
+                        irt_parameters: q.irt_parameters,
+                        shadow_parameters: q.shadow_parameters,
+                        created_at: serverTimestamp()
+                    };
+                    batch.set(qRef, finalQData);
+                });
+
+                // 4. Commit
+                await batch.commit();
+
+                // Success Feedback
+                alert(`成功录入！\n文章ID: ${passageRef.id}\n包含 ${stagedQuestions.length} 道题目。`);
+                location.reload();
+
+            } catch (error) {
+                console.error("Upload failed: ", error);
+                alert("录入失败: " + error.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-2"></i> 重试提交';
+            }
+        };
     </script>
 </body>
 </html>
+
 
