@@ -22,7 +22,12 @@
             background-color: #f8fafc;
             cursor: text; /* 提示这是文本区 */
         }
-
+        /* 确保左侧阅读区可以独立滚动，这是记录 CET-6 "Scan & Locate" 行为的关键 */
+        #reading-pane {
+            overflow-y: auto; 
+            height: 100%;
+            padding-bottom: 50px; /* 防止底部文字被遮挡 */
+        }
         /* 右侧答题区：固定布局，防止题目跑出视线 */
         #question-aoi {
             overflow-y: auto;
@@ -363,3 +368,4 @@
     </script>
 </body>
 </html>
+
