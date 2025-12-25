@@ -177,6 +177,10 @@
                             <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
                             <span>我了解系统会对我的身份进行<strong>匿名化处理</strong>。</span>
                         </label>
+                         <label class="flex items-start gap-3 cursor-pointer select-none">
+                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
+                            <span>我正使用<strong>笔记本或台式主机</strong>以及<strong>硬件鼠标</strong>（非触摸屏）进行答题。</span>
+                        </label>
                     </div>
                     <button type="submit" id="btn-start-exam" disabled class="w-full bg-gray-300 text-white py-3 rounded-lg font-bold transition duration-200 cursor-not-allowed">请勾选上述所有条款</button>
                 </form>
@@ -223,7 +227,10 @@
             // 问卷开启状态，用于暂停轨迹记录
             isSurveyOpen: false,
 
+            // 新增：全局事件历史，防止 flushLogs 清空后数据丢失
+            globalEvents: [], 
             globalTrace: [], 
+
             logs: {
                 reading_logs: [],
                 answering_logs: [],
@@ -357,13 +364,19 @@
             }, { passive: true });
         }
 
-        // 通用日志函数
+        // 修正：通用日志函数，双重记录
         function logAction(type, data) {
-            state.logs.transitions.push({
+            const record = {
                 t: Math.round(performance.now() - state.startTime),
                 type, 
                 data 
-            });
+            };
+            
+            // 1. 放入待上传的临时队列 (Process Mining)
+            state.logs.transitions.push(record);
+            
+            // 2. 放入全局队列 (Final JSON) - 解决下载文件中丢失记录的问题
+            state.globalEvents.push(record);
         }
 
         async function flushLogs() {
@@ -481,7 +494,7 @@
             }
 
             // 1. 插入 "已提交" 标记 (例如: CET6-24-1(1)已提交)
-            // 修正：现在点击下一题时立即记录提交，而不是确认问卷时
+            // 修正：在点击下一题时立即记录，而不是问卷结束时
             const passageId = state.examData.passage.title;
             const currentQNum = state.currentQIndex + 1;
             const submitMsg = `${passageId}(${currentQNum})已提交`;
@@ -566,6 +579,10 @@
                 answers: state.answers,
                 mouse_trace: state.globalTrace,
                 click_history: state.clickHistory,
+                
+                // 修正：将全局事件历史放入最终包，解决 JSON 丢失问题
+                events_history: state.globalEvents,
+
                 first_reading_exit_at: state.firstReadingExitAt,
 
                 grading: {
