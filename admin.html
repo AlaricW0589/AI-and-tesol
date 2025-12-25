@@ -39,8 +39,8 @@
        .toast.success { border-left-color: #22c55e; }
        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-       /* Modal */
-       #modal-overlay {
+       /* Modals */
+       .modal-overlay {
            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50;
            display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px);
        }
@@ -53,28 +53,47 @@
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex">
 
-    <!-- Toast & Modal -->
+    <!-- Toast Container -->
     <div id="toast-container"></div>
-    <div id="modal-overlay">
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay">
         <div class="bg-white rounded-lg shadow-2xl p-6 w-96 transform transition-all scale-100">
             <h3 class="text-lg font-bold text-slate-800 mb-2">确认操作</h3>
-            <p id="modal-message" class="text-sm text-slate-600 mb-6">确定要执行此操作吗？</p>
+            <p id="confirm-message" class="text-sm text-slate-600 mb-6">确定要执行此操作吗？</p>
             <div class="flex justify-end space-x-3">
-                <button onclick="closeModal()" class="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded transition">取消</button>
-                <button id="modal-confirm-btn" class="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded transition shadow">确定</button>
+                <button onclick="closeModal('confirm-modal')" class="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded transition">取消</button>
+                <button id="confirm-btn" class="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded transition shadow">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal (Generic) -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-[600px] max-h-[90vh] flex flex-col">
+            <h3 class="text-lg font-bold text-slate-800 mb-4" id="edit-modal-title">编辑内容</h3>
+            <div id="edit-modal-content" class="flex-1 overflow-y-auto space-y-4 pr-2">
+                <!-- Dynamic Content -->
+            </div>
+            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-slate-100">
+                <button onclick="closeModal('edit-modal')" class="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded transition">取消</button>
+                <button id="edit-save-btn" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition shadow">保存修改</button>
             </div>
         </div>
     </div>
 
     <!-- Sidebar -->
-    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20">
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20 shrink-0">
         <div class="p-6 border-b border-slate-700">
             <h1 class="text-xl font-bold tracking-wider"><i class="fa-solid fa-layer-group mr-2"></i>CET 参数重构</h1>
-            <p class="text-xs text-slate-400 mt-2">v2.1.2 (Config Fix)</p>
+            <p class="text-xs text-slate-400 mt-2">v2.2.1 (Fixes)</p>
         </div>
         <nav class="flex-1 p-4 space-y-2">
             <div onclick="switchView('entry')" id="nav-entry" class="nav-item active block px-4 py-3 rounded-lg cursor-pointer transition duration-200">
                 <i class="fa-solid fa-file-pen mr-3"></i> 试题录入 (Entry)
+            </div>
+            <div onclick="switchView('library')" id="nav-library" class="nav-item inactive block px-4 py-3 rounded-lg cursor-pointer transition duration-200">
+                <i class="fa-solid fa-book-open mr-3"></i> 题库管理 (Library)
             </div>
             <div onclick="switchView('monitor')" id="nav-monitor" class="nav-item inactive block px-4 py-3 rounded-lg cursor-pointer transition duration-200">
                 <i class="fa-solid fa-chart-line mr-3"></i> 参数监控 (Monitor)
@@ -87,7 +106,7 @@
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         
-        <!-- ==================== VIEW: ENTRY (原有录入界面) ==================== -->
+        <!-- ==================== VIEW: ENTRY (录入) ==================== -->
         <div id="view-entry" class="h-full flex flex-col animate-fade-in">
             <header class="bg-white h-16 border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
                 <h2 class="text-lg font-semibold text-slate-700">阅读理解题组录入 (Passage-Based Testlet)</h2>
@@ -225,7 +244,73 @@
             </div>
         </div>
 
-        <!-- ==================== VIEW: MONITOR (新增监控界面) ==================== -->
+        <!-- ==================== VIEW: LIBRARY (新增: 题库管理) ==================== -->
+        <div id="view-library" class="hidden h-full flex flex-col bg-slate-50 animate-fade-in overflow-hidden">
+            <header class="bg-white h-16 border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
+                <h2 class="text-lg font-semibold text-slate-700">题库管理 (Item Bank Library)</h2>
+                <button onclick="window.loadLibrary()" class="text-sm text-blue-600 hover:text-blue-800 font-bold">
+                    <i class="fa-solid fa-rotate mr-1"></i> 刷新列表
+                </button>
+            </header>
+            
+            <div class="flex flex-1 overflow-hidden">
+                <!-- 左侧：文章列表 -->
+                <div class="w-1/3 bg-white border-r border-slate-200 flex flex-col">
+                    <div class="p-4 border-b border-slate-100 bg-slate-50">
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">Passages (Reading Materials)</h3>
+                    </div>
+                    <div id="lib-passage-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+                        <!-- JS Loaded Items -->
+                        <div class="text-center text-slate-400 py-10 text-sm">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- 右侧：详情与题目 -->
+                <div class="w-2/3 bg-slate-50 flex flex-col overflow-hidden relative">
+                    <div id="lib-detail-empty" class="flex flex-col items-center justify-center h-full text-slate-400">
+                        <i class="fa-regular fa-hand-pointer text-4xl mb-3"></i>
+                        <p>请在左侧选择一篇文章以管理题目</p>
+                    </div>
+
+                    <div id="lib-detail-content" class="hidden h-full flex flex-col">
+                        <!-- Passage Info Header -->
+                        <div class="bg-white p-6 border-b border-slate-200 shadow-sm shrink-0">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h2 id="view-p-title" class="text-xl font-bold text-slate-800 mb-1">Title</h2>
+                                    <div class="flex space-x-3 text-xs text-slate-500">
+                                        <span id="view-p-genre" class="bg-slate-100 px-2 py-0.5 rounded">Genre</span>
+                                        <span>Words: <span id="view-p-words">0</span></span>
+                                        <span>Source: <span id="view-p-source">-</span></span>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="window.editPassage()" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-bold hover:bg-blue-100 transition">
+                                        <i class="fa-solid fa-pen mr-1"></i> Edit Text
+                                    </button>
+                                    <button onclick="window.deletePassage()" class="px-3 py-1.5 bg-red-50 text-red-600 rounded text-xs font-bold hover:bg-red-100 transition">
+                                        <i class="fa-solid fa-trash mr-1"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-slate-50 rounded border border-slate-100 text-sm text-slate-600 h-32 overflow-y-auto font-serif leading-relaxed" id="view-p-body">
+                                Content preview...
+                            </div>
+                        </div>
+
+                        <!-- Questions List -->
+                        <div class="flex-1 overflow-y-auto p-6">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase mb-4">Associated Questions</h3>
+                            <div id="view-q-list" class="space-y-3">
+                                <!-- JS Loaded Questions -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: MONITOR (监控) ==================== -->
         <div id="view-monitor" class="hidden h-full flex flex-col bg-slate-50 p-8 overflow-y-auto animate-fade-in">
             <header class="flex justify-between items-end mb-8">
                 <div>
@@ -237,7 +322,6 @@
                 </button>
             </header>
 
-            <!-- 1. Dashboard Metrics -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex items-center justify-between mb-2">
@@ -248,6 +332,7 @@
                     <div class="text-xs text-slate-400 mt-1">Total received records</div>
                 </div>
                 
+                <!-- 修复: 之前丢失的卡片 (Avg Duration) -->
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Avg Duration</span>
@@ -266,17 +351,17 @@
                     <div class="text-xs text-slate-400 mt-1">Audit pass rate</div>
                 </div>
 
+                <!-- 修复: 之前丢失的卡片 (Export) -->
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Export</span>
                         <div class="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600"><i class="fa-solid fa-download"></i></div>
                     </div>
-                    <button class="text-sm font-semibold text-purple-600 hover:underline mt-1">Download All (CSV)</button>
+                    <button class="text-sm font-semibold text-purple-600 hover:underline mt-1" disabled title="Not implemented for bulk yet">Download All (CSV)</button>
                     <div class="text-xs text-slate-400 mt-1">Full dataset</div>
                 </div>
             </div>
 
-            <!-- 2. Student Details Table -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
                 <div class="p-5 border-b border-slate-100 flex justify-between items-center">
                     <h3 class="font-bold text-slate-700">Student Details & Audit Log</h3>
@@ -295,10 +380,7 @@
                             </tr>
                         </thead>
                         <tbody id="monitor-table-body" class="text-sm text-slate-600">
-                            <!-- JS Generated Rows -->
-                            <tr>
-                                <td colspan="6" class="p-8 text-center text-slate-400">Loading data...</td>
-                            </tr>
+                            <tr><td colspan="6" class="p-8 text-center text-slate-400">Loading data...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -308,25 +390,18 @@
     </main>
 
     <script type="module">
-        // 引入 Auth 模块
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, writeBatch, serverTimestamp, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, writeBatch, serverTimestamp, getDocs, query, orderBy, limit, deleteDoc, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // FIX: 不要使用硬编码的配置，否则会导致 custom-token-mismatch
-        // 使用环境注入的配置 __firebase_config
+        // =========================================================================================
+        // Config & Init
+        // =========================================================================================
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
-            try {
-                firebaseConfig = JSON.parse(__firebase_config);
-            } catch (e) {
-                console.error("Failed to parse firebase config", e);
-            }
+            try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) { console.error(e); }
         }
-        
-        // 如果没有环境配置（本地调试），再使用兜底配置 (但不建议)
         if (!firebaseConfig) {
-             console.warn("Using fallback config - this may fail with token mismatch in prod!");
              firebaseConfig = {
                 apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
                 authDomain: "hesitation-research.firebaseapp.com",
@@ -337,86 +412,65 @@
             };
         }
 
-        // --- Init App ---
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        // 环境全局变量
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let currentUser = null;
 
-        // --- Auth Logic (Fixes Permission Error) ---
+        // Auth
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    // 使用环境提供的 Custom Token 登录
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    // 兜底匿名登录
                     await signInAnonymously(auth);
                 }
             } catch (error) {
                 console.error("Auth Failed", error);
-                window.showToast("Authentication Failed: " + error.message, "error");
+                window.showToast("Auth Failed: " + error.message, "error");
             }
         };
-
         onAuthStateChanged(auth, (user) => {
             const statusEl = document.getElementById('db-status');
             if (user) {
                 currentUser = user;
                 statusEl.className = "px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200";
-                statusEl.innerText = "Database: Connected";
+                statusEl.innerText = "DB: Connected";
             } else {
                 statusEl.className = "px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold border border-red-200";
                 statusEl.innerText = "Disconnected";
             }
         });
-
-        // Start Auth immediately
         initAuth();
 
-        // --- Helper: Get Collection Ref (Fixes Path Error) ---
-        // 所有数据必须存储在 artifacts/{appId}/public/data 目录下
-        function getCollectionRef(collectionName) {
-            return collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+        // Helper: Get Ref
+        function getCollectionRef(name) {
+            return collection(db, 'artifacts', appId, 'public', 'data', name);
         }
 
-        // --- Shared State ---
+        // =========================================================================================
+        // State & View Switching
+        // =========================================================================================
         let stagedQuestions = [];
+        let currentPassageId = null; // For Library selection
+        let libraryPassages = []; // Cache for library
 
-        // --- Navigation Logic ---
         window.switchView = function(view) {
-            const entryView = document.getElementById('view-entry');
-            const monitorView = document.getElementById('view-monitor');
-            const navEntry = document.getElementById('nav-entry');
-            const navMonitor = document.getElementById('nav-monitor');
+            ['entry', 'library', 'monitor'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                document.getElementById(`nav-${v}`).className = "nav-item inactive block px-4 py-3 rounded-lg cursor-pointer transition duration-200";
+            });
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+            document.getElementById(`nav-${view}`).className = "nav-item active block px-4 py-3 rounded-lg cursor-pointer transition duration-200";
 
-            if (view === 'entry') {
-                entryView.classList.remove('hidden');
-                monitorView.classList.add('hidden');
-                navEntry.className = "nav-item active block px-4 py-3 rounded-lg cursor-pointer transition duration-200";
-                navMonitor.className = "nav-item inactive block px-4 py-3 rounded-lg cursor-pointer transition duration-200";
-            } else {
-                entryView.classList.add('hidden');
-                monitorView.classList.remove('hidden');
-                navMonitor.className = "nav-item active block px-4 py-3 rounded-lg cursor-pointer transition duration-200";
-                navEntry.className = "nav-item inactive block px-4 py-3 rounded-lg cursor-pointer transition duration-200";
-                
-                // Load Data when switching to monitor
-                window.refreshMonitor();
-            }
+            if (view === 'monitor') window.refreshMonitor();
+            if (view === 'library') window.loadLibrary();
         };
 
-        // --- Entry Logic (Existing) ---
-        document.getElementById('p-content').addEventListener('input', function(e) {
-            const text = e.target.value.replace(/<[^>]*>?/gm, '');
-            const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-            document.getElementById('word-count').innerText = count;
-        });
-
-        // UI Helpers
+        // =========================================================================================
+        // UI Helpers (Toast, Modal)
+        // =========================================================================================
         window.showToast = function(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -427,59 +481,68 @@
             toast.innerHTML = `<span>${icon}${message}</span>`;
             container.appendChild(toast);
             setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
+                toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         };
 
+        window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; };
+        
         window.openConfirm = function(message, onConfirm) {
-            const modal = document.getElementById('modal-overlay');
-            const msgEl = document.getElementById('modal-message');
-            const btn = document.getElementById('modal-confirm-btn');
-            
-            msgEl.innerText = message;
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-message').innerText = message;
             modal.style.display = 'flex';
-            
+            const btn = document.getElementById('confirm-btn');
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
-            newBtn.onclick = function() {
-                onConfirm();
-                window.closeModal();
+            newBtn.onclick = async () => {
+                newBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+                await onConfirm();
+                newBtn.innerHTML = '确定';
+                window.closeModal('confirm-modal');
             };
         };
 
-        window.closeModal = function() {
-            document.getElementById('modal-overlay').style.display = 'none';
+        window.openEditModal = function(title, htmlContent, onSave) {
+            const modal = document.getElementById('edit-modal');
+            document.getElementById('edit-modal-title').innerText = title;
+            const contentDiv = document.getElementById('edit-modal-content');
+            contentDiv.innerHTML = htmlContent;
+            modal.style.display = 'flex';
+            
+            const btn = document.getElementById('edit-save-btn');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.onclick = async () => {
+                newBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...';
+                await onSave();
+                newBtn.innerHTML = '保存修改';
+                window.closeModal('edit-modal');
+            };
         };
+
+        // =========================================================================================
+        // PART 1: Entry Logic (Existing)
+        // =========================================================================================
+        document.getElementById('p-content').addEventListener('input', function(e) {
+            const text = e.target.value.replace(/<[^>]*>?/gm, '');
+            document.getElementById('word-count').innerText = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+        });
 
         window.stageQuestion = function() {
             const stem = document.getElementById('q-stem').value;
             const optionInputs = document.querySelectorAll('.q-opt');
             const options = Array.from(optionInputs).map(input => input.value);
-            
-            if (!stem || options.some(o => !o.trim())) {
-                window.showToast("请填写完整的题干和所有选项！", "error");
-                return;
-            }
+            if (!stem || options.some(o => !o.trim())) { window.showToast("请填写完整信息", "error"); return; }
 
-            const questionData = {
-                id: Date.now(),
-                stem: stem,
-                options: options,
+            stagedQuestions.push({
+                id: Date.now(), stem, options,
                 correct_index: parseInt(document.getElementById('q-correct').value),
                 cognitive_dimension: { bloom_level: document.getElementById('q-bloom').value },
-                irt_parameters: {
-                    b: parseFloat(document.getElementById('q-b').value),
-                    a: parseFloat(document.getElementById('q-a').value),
-                    c: parseFloat(document.getElementById('q-c').value)
-                },
+                irt_parameters: { b: parseFloat(document.getElementById('q-b').value), a: parseFloat(document.getElementById('q-a').value), c: parseFloat(document.getElementById('q-c').value) },
                 shadow_params: { b_hat: parseFloat(document.getElementById('q-b').value), n_exposures: 0 }
-            };
-
-            stagedQuestions.push(questionData);
+            });
             renderStagedQuestions();
-            
             document.getElementById('q-stem').value = '';
             optionInputs.forEach(i => i.value = '');
             window.showToast("题目已暂存", "success");
@@ -488,73 +551,39 @@
         function renderStagedQuestions() {
             const container = document.getElementById('questions-container');
             const emptyState = document.getElementById('empty-state');
-            const batchCount = document.getElementById('batch-count');
-
-            if (stagedQuestions.length > 0 && emptyState) emptyState.classList.add('hidden');
+            document.getElementById('batch-count').innerText = stagedQuestions.length;
+            
+            if (stagedQuestions.length > 0) emptyState.classList.add('hidden');
+            else { emptyState.classList.remove('hidden'); container.innerHTML = ''; container.appendChild(emptyState); return; }
+            
             container.innerHTML = '';
-            if (stagedQuestions.length === 0 && emptyState) {
-                emptyState.classList.remove('hidden');
-                container.appendChild(emptyState);
-            }
-
             stagedQuestions.forEach((q, index) => {
                 const card = document.createElement('div');
                 card.className = "bg-white p-4 rounded-lg shadow-sm border border-slate-200 relative group animate-fade-in mb-3";
                 card.innerHTML = `
-                    <div class="absolute top-2 right-2 text-slate-300 hover:text-red-500 cursor-pointer" onclick="window.removeQuestion(${index})">
-                        <i class="fa-solid fa-circle-xmark"></i>
-                    </div>
-                    <div class="flex items-start justify-between mb-2">
-                        <span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Q${index + 1}</span>
-                        <div class="flex space-x-2 text-[10px] text-slate-400 font-mono">
-                            <span>b:${q.irt_parameters.b}</span>
-                            <span>a:${q.irt_parameters.a}</span>
-                        </div>
-                    </div>
+                    <div class="absolute top-2 right-2 text-slate-300 hover:text-red-500 cursor-pointer" onclick="window.removeQuestion(${index})"><i class="fa-solid fa-circle-xmark"></i></div>
+                    <div class="flex items-start justify-between mb-2"><span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded uppercase font-bold">Q${index + 1}</span></div>
                     <p class="text-sm font-semibold text-slate-700 mb-2 truncate">${q.stem}</p>
-                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
-                        ${q.options.map((opt, i) => `<div class="${i === q.correct_index? 'text-green-600 font-bold bg-green-50 rounded px-1' : ''}">${String.fromCharCode(65+i)}. ${opt}</div>`).join('')}
-                    </div>
                 `;
                 container.appendChild(card);
             });
-            batchCount.innerText = stagedQuestions.length;
         }
-
-        window.removeQuestion = function(index) {
-            stagedQuestions.splice(index, 1);
-            renderStagedQuestions();
-        };
-
-        window.resetAll = function() {
-            window.openConfirm("确定要清空所有内容吗？未保存的数据将丢失。", () => {
-                location.reload();
-            });
-        };
+        window.removeQuestion = (i) => { stagedQuestions.splice(i, 1); renderStagedQuestions(); };
+        window.resetAll = () => window.openConfirm("清空表单？", () => location.reload());
 
         window.uploadTestlet = async function() {
-            if (!currentUser) {
-                window.showToast("等待数据库连接...", "error");
-                return;
-            }
-
-            const btn = document.getElementById('btn-upload');
+            if (!currentUser) return window.showToast("等待数据库连接...", "error");
             const pTitle = document.getElementById('p-title').value;
             const pContent = document.getElementById('p-content').value;
-            
-            if (!pTitle || !pContent || stagedQuestions.length === 0) {
-                window.showToast("请填写文章标题、内容并至少添加一道题目！", "error");
-                return;
-            }
+            if (!pTitle || !pContent || stagedQuestions.length === 0) return window.showToast("信息不完整", "error");
 
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Uploading...';
+            const btn = document.getElementById('btn-upload');
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Uploading...';
 
             try {
                 const batch = writeBatch(db);
-                // 使用正确的路径
                 const passageRef = doc(getCollectionRef("reading_materials"));
-                const passageData = {
+                batch.set(passageRef, {
                     title: pTitle,
                     genre: document.getElementById('p-genre').value,
                     source: document.getElementById('p-source').value,
@@ -562,127 +591,263 @@
                     word_count: parseInt(document.getElementById('word-count').innerText) || 0,
                     created_at: serverTimestamp(),
                     shadow_difficulty: parseFloat(document.getElementById('p-diff').value)
-                };
-                batch.set(passageRef, passageData);
-
+                });
                 stagedQuestions.forEach(q => {
                     const qRef = doc(getCollectionRef("questions"));
-                    const finalQData = {
-                        passage_id: passageRef.id,
-                        stem: q.stem,
-                        options: q.options,
-                        correct_index: q.correct_index,
-                        cognitive_dimension: q.cognitive_dimension,
-                        irt_parameters: q.irt_parameters,
-                        shadow_parameters: q.shadow_params,
-                        created_at: serverTimestamp()
-                    };
-                    batch.set(qRef, finalQData);
+                    batch.set(qRef, { ...q, passage_id: passageRef.id, created_at: serverTimestamp() });
                 });
-
                 await batch.commit();
-                window.showToast(`成功录入！包含 ${stagedQuestions.length} 道题目。`, "success");
-                setTimeout(() => { window.location.reload(); }, 1500);
-
+                window.showToast("成功录入！", "success");
+                setTimeout(() => location.reload(), 1500);
             } catch (error) {
-                console.error("Upload failed: ", error);
-                window.showToast("录入失败: " + error.message, "error");
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-2"></i> 重试提交';
+                console.error(error); window.showToast("录入失败: " + error.message, "error");
+                btn.disabled = false; btn.innerHTML = '重试提交';
             }
         };
 
+        // =========================================================================================
+        // PART 2: Library Logic (New)
+        // =========================================================================================
+        window.loadLibrary = async function() {
+            const listEl = document.getElementById('lib-passage-list');
+            listEl.innerHTML = '<div class="text-center text-slate-400 py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>';
+            
+            try {
+                const snapshot = await getDocs(getCollectionRef("reading_materials"));
+                libraryPassages = [];
+                snapshot.forEach(doc => libraryPassages.push({ id: doc.id, ...doc.data() }));
+                
+                // Client side sort desc
+                libraryPassages.sort((a,b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
 
-        // --- Monitor Logic (Updated Path) ---
+                renderLibraryList();
+            } catch (e) {
+                console.error(e);
+                listEl.innerHTML = `<div class="text-red-500 p-4 text-xs">Failed to load: ${e.message}</div>`;
+            }
+        };
 
+        function renderLibraryList() {
+            const listEl = document.getElementById('lib-passage-list');
+            listEl.innerHTML = '';
+            libraryPassages.forEach(p => {
+                const item = document.createElement('div');
+                item.className = `p-3 rounded border cursor-pointer hover:bg-blue-50 transition mb-2 ${currentPassageId === p.id ? 'bg-blue-100 border-blue-300' : 'bg-white border-slate-200'}`;
+                item.onclick = () => window.selectPassage(p.id);
+                item.innerHTML = `
+                    <div class="font-bold text-sm text-slate-700 truncate">${p.title}</div>
+                    <div class="flex justify-between mt-1 text-[10px] text-slate-400">
+                        <span class="uppercase">${p.genre}</span>
+                        <span>${p.created_at ? new Date(p.created_at.seconds * 1000).toLocaleDateString() : '-'}</span>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        window.selectPassage = async function(id) {
+            currentPassageId = id;
+            renderLibraryList();
+            
+            const p = libraryPassages.find(x => x.id === id);
+            document.getElementById('lib-detail-empty').classList.add('hidden');
+            document.getElementById('lib-detail-content').classList.remove('hidden');
+            
+            // Fill details
+            document.getElementById('view-p-title').innerText = p.title;
+            document.getElementById('view-p-genre').innerText = p.genre;
+            document.getElementById('view-p-words').innerText = p.word_count;
+            document.getElementById('view-p-source').innerText = p.source || '-';
+            document.getElementById('view-p-body').innerHTML = p.content_html;
+            
+            // Fetch Questions
+            const qListEl = document.getElementById('view-q-list');
+            qListEl.innerHTML = '<div class="text-slate-400 text-xs">Loading questions...</div>';
+            
+            try {
+                // Try simple where clause
+                const qQuery = query(getCollectionRef("questions"), where("passage_id", "==", id));
+                const snapshot = await getDocs(qQuery);
+                qListEl.innerHTML = '';
+                
+                if(snapshot.empty) qListEl.innerHTML = '<div class="text-slate-400 text-xs italic">No questions found.</div>';
+
+                snapshot.forEach(doc => {
+                    const q = doc.data();
+                    const qEl = document.createElement('div');
+                    qEl.className = "bg-white p-4 rounded border border-slate-200 relative group";
+                    qEl.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                             <div class="font-bold text-sm text-slate-700 w-10/12">${q.stem}</div>
+                             <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition">
+                                <button onclick="window.editQuestion('${doc.id}', '${q.stem.replace(/'/g, "\\'")}', '${q.correct_index}')" class="text-blue-500 hover:bg-blue-50 p-1 rounded"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="window.deleteQuestion('${doc.id}')" class="text-red-500 hover:bg-red-50 p-1 rounded"><i class="fa-solid fa-trash"></i></button>
+                             </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                             ${(q.options || []).map((opt, i) => `<div class="${i === q.correct_index ? 'text-green-600 font-bold' : ''}">${String.fromCharCode(65+i)}. ${opt}</div>`).join('')}
+                        </div>
+                    `;
+                    qListEl.appendChild(qEl);
+                });
+
+            } catch(e) {
+                console.warn(e);
+                // Fallback: fetch all and filter (for no-index environments)
+                const allQ = await getDocs(getCollectionRef("questions"));
+                qListEl.innerHTML = '';
+                allQ.forEach(doc => {
+                    const q = doc.data();
+                    if(q.passage_id === id) {
+                        // Render logic (duplicate for fallback simplicity)
+                        const qEl = document.createElement('div');
+                        qEl.className = "bg-white p-4 rounded border border-slate-200 relative group";
+                        qEl.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="font-bold text-sm text-slate-700 w-10/12">${q.stem}</div>
+                                <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition">
+                                    <button onclick="window.editQuestion('${doc.id}', '${q.stem.replace(/'/g, "\\'")}', '${q.correct_index}')" class="text-blue-500 hover:bg-blue-50 p-1 rounded"><i class="fa-solid fa-pen"></i></button>
+                                    <button onclick="window.deleteQuestion('${doc.id}')" class="text-red-500 hover:bg-red-50 p-1 rounded"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                                ${(q.options || []).map((opt, i) => `<div class="${i === q.correct_index ? 'text-green-600 font-bold' : ''}">${String.fromCharCode(65+i)}. ${opt}</div>`).join('')}
+                            </div>
+                        `;
+                        qListEl.appendChild(qEl);
+                    }
+                });
+            }
+        };
+
+        // --- Library Actions ---
+        window.deletePassage = function() {
+            if(!currentPassageId) return;
+            window.openConfirm("确定删除该文章及其所有题目吗？不可恢复。", async () => {
+                // Delete passage
+                await deleteDoc(doc(getCollectionRef("reading_materials"), currentPassageId));
+                
+                // Delete questions (Best effort client side)
+                const snapshot = await getDocs(query(getCollectionRef("questions"), where("passage_id", "==", currentPassageId)));
+                const deletePromises = [];
+                snapshot.forEach(d => deletePromises.push(deleteDoc(d.ref)));
+                await Promise.all(deletePromises);
+
+                window.showToast("删除成功", "success");
+                currentPassageId = null;
+                document.getElementById('lib-detail-content').classList.add('hidden');
+                document.getElementById('lib-detail-empty').classList.remove('hidden');
+                window.loadLibrary();
+            });
+        };
+
+        window.deleteQuestion = function(qId) {
+            window.openConfirm("确定删除该题目吗？", async () => {
+                await deleteDoc(doc(getCollectionRef("questions"), qId));
+                window.showToast("题目已删除", "success");
+                window.selectPassage(currentPassageId); // Refresh
+            });
+        };
+
+        window.editPassage = function() {
+            if(!currentPassageId) return;
+            const p = libraryPassages.find(x => x.id === currentPassageId);
+            
+            const html = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Title</label>
+                        <input id="edit-p-title" class="w-full border p-2 rounded text-sm" value="${p.title}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Content (HTML Supported)</label>
+                        <textarea id="edit-p-content" class="w-full border p-2 rounded text-sm h-64 font-serif">${p.content_html}</textarea>
+                    </div>
+                </div>
+            `;
+            
+            window.openEditModal("编辑文章", html, async () => {
+                const newTitle = document.getElementById('edit-p-title').value;
+                const newContent = document.getElementById('edit-p-content').value;
+                
+                await updateDoc(doc(getCollectionRef("reading_materials"), currentPassageId), {
+                    title: newTitle,
+                    content_html: newContent
+                });
+                
+                window.showToast("文章已更新", "success");
+                window.loadLibrary();
+                setTimeout(() => window.selectPassage(currentPassageId), 500);
+            });
+        };
+
+        window.editQuestion = function(qId, currentStem, currentIdx) {
+            const html = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">题干 (Stem)</label>
+                        <input id="edit-q-stem" class="w-full border p-2 rounded text-sm" value="${currentStem}">
+                    </div>
+                     <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">正确选项索引 (0=A, 1=B...)</label>
+                        <input type="number" id="edit-q-idx" class="w-full border p-2 rounded text-sm" value="${currentIdx}">
+                    </div>
+                </div>
+            `;
+            window.openEditModal("编辑题目", html, async () => {
+                const newStem = document.getElementById('edit-q-stem').value;
+                const newIdx = parseInt(document.getElementById('edit-q-idx').value);
+                
+                await updateDoc(doc(getCollectionRef("questions"), qId), {
+                    stem: newStem,
+                    correct_index: newIdx
+                });
+                window.showToast("题目已更新", "success");
+                window.selectPassage(currentPassageId);
+            });
+        };
+
+        // =========================================================================================
+        // PART 3: Monitor Logic (Updated with Delete)
+        // =========================================================================================
         window.refreshMonitor = async function() {
             const tbody = document.getElementById('monitor-table-body');
             tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Loading data...</td></tr>';
 
-            if (!currentUser) {
-                // 等待一下 auth 初始化
-                await new Promise(r => setTimeout(r, 1000));
-                if (!currentUser) {
-                     tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-red-400">Database not connected.</td></tr>';
-                     return;
-                }
-            }
-
             try {
-                // 使用正确的路径: artifacts/{appId}/public/data/exam_submissions
-                const q = query(getCollectionRef("exam_submissions"), orderBy("submitted_at", "desc"), limit(50));
-                
-                // 注意：orderBy 在没有索引的情况下可能会报错。
-                // 如果报错，可以移除 orderBy，或者在控制台创建索引。
-                // 为了演示安全，如果报错，我们会降级到模拟数据或无排序。
-                
-                let snapshot;
-                try {
-                     snapshot = await getDocs(q);
-                } catch(indexError) {
-                    console.warn("Index missing or permission issue, falling back to mock/simple query");
-                    // 尝试不带 orderBy 的简单查询
-                     snapshot = await getDocs(query(getCollectionRef("exam_submissions"), limit(50)));
-                }
-                
+                // Client-side sort/limit logic
+                const snapshot = await getDocs(getCollectionRef("exam_submissions"));
                 let data = [];
-                if (snapshot && !snapshot.empty) {
-                    snapshot.forEach(doc => {
-                        data.push({ id: doc.id, ...doc.data() });
-                    });
-                } else {
-                    console.log("No data found or empty, using mock data for demo.");
-                    data = loadMockData(); 
-                }
+                snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+                
+                // Sort Desc
+                data.sort((a, b) => (b.submitted_at?.seconds || 0) - (a.submitted_at?.seconds || 0));
+                
+                // Update stats before slicing
+                updateDashboardStats(data);
+                
+                // Limit 50
+                data = data.slice(0, 50);
 
                 renderMonitorTable(data);
-                updateDashboardStats(data);
-
             } catch (error) {
-                console.error("Monitor fetch error:", error);
-                // 即使出错了，为了演示 UI，我们还是加载模拟数据，但提示错误
-                window.showToast("Fetch Error (Using Mock): " + error.message, "error");
-                renderMonitorTable(loadMockData());
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500">Error: ${error.message}</td></tr>`;
             }
         };
-
-        function loadMockData() {
-            const mockData = [];
-            const now = new Date();
-            for (let i = 0; i < 15; i++) {
-                const isValid = Math.random() > 0.3;
-                mockData.push({
-                    id: `SUB-${1000 + i}`,
-                    user_id: `user_${Math.floor(Math.random() * 1000)}`,
-                    user_name: `Student ${String.fromCharCode(65+i)}`,
-                    submitted_at: new Date(now.getTime() - Math.random() * 86400000), 
-                    duration_seconds: Math.floor(Math.random() * 1200) + 300, 
-                    mouse_trace: isValid ? Array(100).fill({x:0, y:0}) : [], 
-                    responses: { q1: 'A', q2: 'B' }
-                });
-            }
-            return mockData.sort((a,b) => b.submitted_at - a.submitted_at);
-        }
-
-        function validateSession(record) {
-            if (!record.mouse_trace || record.mouse_trace.length === 0) {
-                return { isValid: false, reason: "Missing Trace Data" };
-            }
-            if (record.duration_seconds < 60) {
-                 return { isValid: false, reason: "Duration < 60s" };
-            }
-            return { isValid: true, reason: "OK" };
-        }
 
         function renderMonitorTable(data) {
             const tbody = document.getElementById('monitor-table-body');
             tbody.innerHTML = '';
+            
+            if(data.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">暂无数据</td></tr>';
+                 return;
+            }
 
             data.forEach(record => {
                 const audit = validateSession(record);
-                const dateStr = record.submitted_at instanceof Date ? 
-                                record.submitted_at.toLocaleString() : 
-                                (record.submitted_at && record.submitted_at.seconds ? new Date(record.submitted_at.seconds * 1000).toLocaleString() : 'N/A');
+                const dateStr = record.submitted_at ? new Date(record.submitted_at.seconds * 1000).toLocaleString() : 'N/A';
                 
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-slate-100 hover:bg-slate-50 transition";
@@ -696,9 +861,12 @@
                             ? `<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold border border-green-200">Valid</span>` 
                             : `<span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold border border-red-200" title="${audit.reason}">Invalid</span>`}
                     </td>
-                    <td class="p-4 text-right">
-                        <button onclick='window.downloadJSON(${JSON.stringify(JSON.stringify(record))})' class="text-blue-600 hover:text-blue-800 text-xs font-bold border border-blue-200 px-3 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
-                            <i class="fa-solid fa-download mr-1"></i> JSON
+                    <td class="p-4 text-right flex justify-end space-x-2">
+                        <button onclick='window.downloadJSON(${JSON.stringify(JSON.stringify(record))})' class="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition" title="Download JSON">
+                            <i class="fa-solid fa-download"></i>
+                        </button>
+                        <button onclick="window.deleteSubmission('${record.id}')" class="text-red-500 hover:bg-red-50 p-1.5 rounded transition" title="Delete Record">
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </td>
                 `;
@@ -706,35 +874,45 @@
             });
         }
 
-        function updateDashboardStats(data) {
-            document.getElementById('stat-total').innerText = data.length;
-            
-            const totalDuration = data.reduce((acc, curr) => acc + curr.duration_seconds, 0);
-            const avgDuration = data.length ? Math.round((totalDuration / data.length) / 60) : 0;
-            document.getElementById('stat-time').innerText = avgDuration + "m";
+        window.deleteSubmission = function(id) {
+            window.openConfirm("确定要删除这条学生记录吗？此操作不可撤销。", async () => {
+                await deleteDoc(doc(getCollectionRef("exam_submissions"), id));
+                window.showToast("记录已删除", "success");
+                window.refreshMonitor();
+            });
+        };
 
+        function validateSession(record) {
+            if (!record.mouse_trace || record.mouse_trace.length === 0) return { isValid: false, reason: "No Trace" };
+            if (record.duration_seconds < 60) return { isValid: false, reason: "Too Short" };
+            return { isValid: true, reason: "OK" };
+        }
+
+        function updateDashboardStats(data) {
+            const totalEl = document.getElementById('stat-total');
+            const timeEl = document.getElementById('stat-time');
+            const validEl = document.getElementById('stat-validity');
+            
+            if(totalEl) totalEl.innerText = data.length;
+            
+            const totalDuration = data.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0);
+            if(timeEl) timeEl.innerText = data.length ? Math.round((totalDuration / data.length) / 60) + "m" : "0m";
+            
             const validCount = data.filter(r => validateSession(r).isValid).length;
-            const validRate = data.length ? Math.round((validCount / data.length) * 100) : 0;
-            document.getElementById('stat-validity').innerText = validRate + "%";
+            if(validEl) validEl.innerText = data.length ? Math.round((validCount / data.length) * 100) + "%" : "0%";
         }
 
         window.downloadJSON = function(jsonStr) {
             try {
                 const data = JSON.parse(jsonStr);
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
-                const downloadAnchorNode = document.createElement('a');
-                downloadAnchorNode.setAttribute("href", dataStr);
-                downloadAnchorNode.setAttribute("download", `student_${data.user_id}_data.json`);
-                document.body.appendChild(downloadAnchorNode);
-                downloadAnchorNode.click();
-                downloadAnchorNode.remove();
-            } catch (e) {
-                console.error("Download error", e);
-                window.showToast("下载出错", "error");
-            }
+                const a = document.createElement('a');
+                a.setAttribute("href", dataStr);
+                a.setAttribute("download", `student_${data.user_id}_data.json`);
+                document.body.appendChild(a); a.click(); a.remove();
+            } catch (e) { console.error(e); window.showToast("下载出错", "error"); }
         };
 
     </script>
 </body>
 </html>
-
