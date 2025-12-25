@@ -177,7 +177,7 @@
                             <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
                             <span>我了解系统会对我的身份进行<strong>匿名化处理</strong>。</span>
                         </label>
-                         <label class="flex items-start gap-3 cursor-pointer select-none">
+                          <label class="flex items-start gap-3 cursor-pointer select-none">
                             <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
                             <span>我正使用<strong>笔记本或台式主机</strong>以及<strong>硬件鼠标</strong>（非触摸屏）进行答题。</span>
                         </label>
@@ -227,8 +227,7 @@
             // 问卷开启状态，用于暂停轨迹记录
             isSurveyOpen: false,
 
-            // 新增：全局事件历史，防止 flushLogs 清空后数据丢失
-            globalEvents: [], 
+            // 修正：globalTrace 将作为一个混合数组，包含鼠标点和事件点
             globalTrace: [], 
 
             logs: {
@@ -354,17 +353,27 @@
                     logAction('phase_switch', { to: 'answering' });
                 }
 
-                const t = Math.round(now - state.startTime);
-                const point = { t, x: Math.round(e.clientX), y: Math.round(e.clientY), scroll: scrollY, zone: currentZone };
+                // 修正：添加 type: 'mouse'，并推入 globalTrace
+                const point = { 
+                    t: Math.round(now - state.startTime), 
+                    x: Math.round(e.clientX), 
+                    y: Math.round(e.clientY), 
+                    scroll: scrollY, 
+                    zone: currentZone,
+                    type: 'mouse' // 增加标识
+                };
 
+                // 分段日志 (保持原样)
                 if (state.currentPhase === 'reading') state.logs.reading_logs.push(point);
                 else state.logs.answering_logs.push(point);
+                
+                // 全局日志 (包含鼠标点)
                 state.globalTrace.push(point);
 
             }, { passive: true });
         }
 
-        // 修正：通用日志函数，双重记录
+        // 修正：logAction 现在将事件作为“锚点”直接插入 globalTrace
         function logAction(type, data) {
             const record = {
                 t: Math.round(performance.now() - state.startTime),
@@ -375,8 +384,8 @@
             // 1. 放入待上传的临时队列 (Process Mining)
             state.logs.transitions.push(record);
             
-            // 2. 放入全局队列 (Final JSON) - 解决下载文件中丢失记录的问题
-            state.globalEvents.push(record);
+            // 2. 放入全局 Trace 队列 (作为锚点)
+            state.globalTrace.push(record);
         }
 
         async function flushLogs() {
@@ -471,7 +480,7 @@
         }
 
         // -----------------------------------------------------------
-        // 7. 问卷逻辑 (含 Milestone 标记)
+        // 7. 问卷逻辑
         // -----------------------------------------------------------
         document.querySelectorAll('.rating-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -486,7 +495,7 @@
             });
         });
 
-        // 拦截下一题 -> 记录“已提交” -> 打开问卷 -> 暂停轨迹
+        // 拦截下一题
         document.getElementById('btn-next').addEventListener('click', async () => {
             if (!state.answers[state.currentQIndex]) {
                 alert("请先选择一个答案。");
@@ -494,7 +503,6 @@
             }
 
             // 1. 插入 "已提交" 标记 (例如: CET6-24-1(1)已提交)
-            // 修正：在点击下一题时立即记录，而不是问卷结束时
             const passageId = state.examData.passage.title;
             const currentQNum = state.currentQIndex + 1;
             const submitMsg = `${passageId}(${currentQNum})已提交`;
@@ -514,7 +522,7 @@
             confirmBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         });
 
-        // 确认问卷 -> 上传 -> 写入开始标记 -> 下一题
+        // 确认问卷
         document.getElementById('btn-confirm-survey').addEventListener('click', async () => {
             const modal = document.getElementById('survey-modal');
             
@@ -526,7 +534,7 @@
             state.isSurveyOpen = false;
             modal.classList.add('hidden');
 
-            // 3. 上传当前题目数据 (包含问卷期间产生的日志)
+            // 3. 上传日志
             await flushLogs();
 
             // 4. 切换逻辑
@@ -534,7 +542,7 @@
                 // 进入下一题
                 state.currentQIndex++;
                 
-                // 插入 "已开始" 标记 (例如: CET6-24-1(2)已开始)
+                // 插入 "已开始" 标记
                 const passageId = state.examData.passage.title;
                 const nextQNum = state.currentQIndex + 1;
                 const startMsg = `${passageId}(${nextQNum})已开始`;
@@ -543,7 +551,6 @@
                 renderQuestion(state.currentQIndex);
                 document.getElementById('question-aoi').scrollTop = 0;
             } else {
-                // 最终提交
                 submitFinalExamData();
             }
         });
@@ -577,12 +584,10 @@
                 user_id: state.studentId,
                 
                 answers: state.answers,
+                // 修正：globalTrace 包含鼠标点和事件点
                 mouse_trace: state.globalTrace,
                 click_history: state.clickHistory,
                 
-                // 修正：将全局事件历史放入最终包，解决 JSON 丢失问题
-                events_history: state.globalEvents,
-
                 first_reading_exit_at: state.firstReadingExitAt,
 
                 grading: {
