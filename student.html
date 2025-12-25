@@ -14,16 +14,36 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+      /* 全局禁止选中，保持UI整洁 */
       .unselectable {
             -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: default;
         }
+      
+      /* 修正：允许阅读区和题目区进行文本选中/高亮，提高可读性 */
+      .prose-content, #question-container {
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+            user-select: text !important;
+            cursor: text;
+      }
+      /* 选中后的背景色，模仿高亮笔效果 */
+      ::selection {
+            background: #fde047; /* 黄色高亮 */
+            color: #000;
+      }
+
       .prose-content {
             font-family: 'Georgia', 'Cambria', serif; line-height: 1.8; font-size: 1.05rem; color: #1e293b;
         }
       .prose-content p { margin-bottom: 1.5em; }
+      
       .option-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
       .option-card:hover { transform: translateX(4px); }
+      /* 选项本身保持不可选中，防止误选文字影响点击 */
+      .option-card { user-select: none; } 
       .option-card.selected { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+      
       .modal-overlay { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
       .status-dot {
             height: 8px; width: 8px; background-color: #22c55e; border-radius: 50%; display: inline-block;
@@ -34,10 +54,7 @@
             70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
-        /* Survey Rating Buttons */
-        .rating-btn {
-            transition: all 0.2s;
-        }
+        .rating-btn { transition: all 0.2s; }
         .rating-btn:hover { background-color: #ebf8ff; border-color: #3b82f6; }
         .rating-btn.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
     </style>
@@ -186,7 +203,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
-        // 增加 doc, setDoc, updateDoc 引用
         import { getFirestore, collection, addDoc, doc, setDoc, getDocs, query, orderBy, limit, where, Timestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -208,13 +224,20 @@
         const state = {
             studentId: null,
             sessionId: null,
-            dbDocId: null, // 关键：存储Firebase文档的ID，用于覆盖更新，防止重复
+            dbDocId: null,
             
             examData: null,
             currentQIndex: 0,
             answers: {},
-            surveyResponses: {}, // 存储问卷答案 { q_idx: confidence_score }
+            surveyResponses: {}, 
             
+            // 新增：记录所有点击行为的完整历史 (Array of Objects)
+            // 格式: { q_idx: 0, val: 'A', t: 1250 }
+            clickHistory: [], 
+            
+            // 新增：第一次离开阅读区的时间点
+            firstReadingExitAt: null,
+
             startTime: null,
             isTracking: false,
             globalTrace: [], 
@@ -226,8 +249,6 @@
             
             currentPhase: 'reading',
             hasEnteredAnswerZone: false,
-
-            // 临时状态
             tempSelectedRating: null
         };
 
@@ -241,7 +262,6 @@
             return `${name.replace(/\s+/g, '')}_${gender}_${age}_${month}${day}`;
         }
 
-        // 注册表单校验
         const checkboxes = document.querySelectorAll('.consent-check');
         const startBtn = document.getElementById('btn-start-exam');
         checkboxes.forEach(cb => cb.addEventListener('change', () => {
@@ -301,7 +321,7 @@
         }
 
         // -----------------------------------------------------------
-        // 5. 轨迹追踪
+        // 5. 轨迹追踪 (含首次离开阅读区判定)
         // -----------------------------------------------------------
         function startTracking() {
             state.isTracking = true;
@@ -312,6 +332,18 @@
             document.addEventListener('mousemove', (e) => {
                 if (!state.isTracking) return;
                 const now = performance.now();
+                
+                // 修正：首次离开阅读区判定
+                // 逻辑：如果当前鼠标不在 readingZone 内，且 firstReadingExitAt 尚未记录，则记录
+                if (state.firstReadingExitAt === null) {
+                    const isInsideReading = readingZone.contains(e.target);
+                    if (!isInsideReading) {
+                        state.firstReadingExitAt = Math.round(now - state.startTime);
+                        // 同时也记录一个 log 事件
+                        logAction('exit_reading_zone', { t: state.firstReadingExitAt });
+                    }
+                }
+
                 if (now - lastTime < 33) return; 
                 lastTime = now;
 
@@ -418,9 +450,24 @@
         }
 
         function selectOption(qIndex, answer, cardElement) {
+            const timestamp = Math.round(performance.now() - state.startTime);
+
+            // 1. 更新当前答案
             state.answers[qIndex] = answer;
+            
+            // 2. 修正：记录点击历史 (包含时间戳)
+            state.clickHistory.push({
+                q_idx: qIndex,
+                val: answer,
+                t: timestamp
+            });
+
+            // 3. UI 更新
             document.querySelectorAll('.option-card').forEach(opt => opt.classList.remove('selected'));
             cardElement.classList.add('selected');
+
+            // 4. 记录Log
+            logAction('select_option', { q_idx: qIndex, ans: answer });
         }
 
         function updatePhaseDisplay() {
@@ -434,10 +481,8 @@
         }
 
         // -----------------------------------------------------------
-        // 7. 问卷逻辑 (Survey Logic)
+        // 7. 问卷逻辑
         // -----------------------------------------------------------
-        
-        // 评分按钮点击
         document.querySelectorAll('.rating-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
@@ -451,19 +496,14 @@
             });
         });
 
-        // 拦截“下一题”点击 -> 显示问卷
         document.getElementById('btn-next').addEventListener('click', async () => {
-            // 校验是否选择了答案
             if (!state.answers[state.currentQIndex]) {
                 alert("请先选择一个答案。");
                 return;
             }
-
-            // 打开问卷 Modal
             const modal = document.getElementById('survey-modal');
             modal.classList.remove('hidden');
             
-            // 重置问卷状态
             state.tempSelectedRating = null;
             document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
             const confirmBtn = document.getElementById('btn-confirm-survey');
@@ -472,37 +512,26 @@
             confirmBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         });
 
-        // 确认问卷 -> 执行真正的翻页/提交
         document.getElementById('btn-confirm-survey').addEventListener('click', async () => {
             const modal = document.getElementById('survey-modal');
-            
-            // 1. 记录问卷数据
             state.surveyResponses[state.currentQIndex] = parseInt(state.tempSelectedRating);
             logAction('confidence_survey', { q_idx: state.currentQIndex, rating: state.tempSelectedRating });
-
-            // 2. 关闭 Modal
             modal.classList.add('hidden');
-
-            // 3. 上传当前题目日志
             await flushLogs();
 
-            // 4. 判断是下一题还是提交
             if (state.currentQIndex < state.examData.questions.length - 1) {
-                // Next Question
                 state.currentQIndex++;
                 renderQuestion(state.currentQIndex);
                 document.getElementById('question-aoi').scrollTop = 0;
             } else {
-                // Submit Final
                 submitFinalExamData();
             }
         });
 
         // -----------------------------------------------------------
-        // 8. 最终提交 (解决双份数据问题)
+        // 8. 最终提交
         // -----------------------------------------------------------
         async function submitFinalExamData() {
-            // 计算评分
             let score = 0;
             let gradingDetails = [];
             const labels = ['A', 'B', 'C', 'D'];
@@ -518,30 +547,32 @@
                     user_answer: userAns || null,
                     correct_answer: correctAnsChar,
                     is_correct: isCorrect,
-                    confidence_rating: state.surveyResponses[idx] || null // 关联自信度
+                    confidence_rating: state.surveyResponses[idx] || null
                 });
             });
 
-            // 构建主数据包
             const finalPayload = {
                 session_id: state.sessionId,
                 student_id: state.studentId, 
-                user_id: state.studentId, // 关键：映射 user_id 给 Admin 显示
+                user_id: state.studentId,
                 
                 answers: state.answers,
                 mouse_trace: state.globalTrace,
+                
+                // 新增数据字段：
+                click_history: state.clickHistory, // 完整点击历史
+                first_reading_exit_at: state.firstReadingExitAt, // 首次离开阅读区时间
+
                 grading: {
                     total_score: score,
                     total_questions: state.examData.questions.length,
                     details: gradingDetails
                 },
-                // 确保时间是 Update 时间
                 submitted_at: Timestamp.now(), 
                 status: "completed",
                 duration_seconds: (performance.now() - state.startTime) / 1000
             };
 
-            // 独立问卷数据包
             const surveyPayload = {
                 student_id: state.studentId,
                 session_id: state.sessionId,
@@ -550,16 +581,13 @@
             };
 
             try {
-                // 1. 更新主记录 (解决双份数据问题：使用 setDoc 覆盖之前的 started 记录)
                 if (state.dbDocId) {
                     const docRef = doc(db, "exam_submissions", state.dbDocId);
                     await setDoc(docRef, finalPayload, { merge: true });
                 } else {
-                    // 容错：如果没有ID（极少情况），则新建
                     await addDoc(collection(db, "exam_submissions"), finalPayload);
                 }
 
-                // 2. 上传问卷 (使用指定 ID 命名: studentId_questionnaire)
                 const surveyDocId = `${state.studentId}_questionnaire`;
                 await setDoc(doc(db, "questionnaires", surveyDocId), surveyPayload);
 
@@ -589,17 +617,16 @@
             document.getElementById('system-status').innerText = "系统就绪";
             document.getElementById('btn-start-exam').innerText = "正在初始化...";
 
-            // 注册：创建初始文档，并保存 ID
             try {
                 const docRef = await addDoc(collection(db, "exam_submissions"), {
                     session_id: state.sessionId,
                     student_id: state.studentId,
-                    user_id: state.studentId, // 这里也加上 user_id
+                    user_id: state.studentId,
                     meta: { name, gender, age, grade },
                     started_at: Timestamp.now(),
                     status: "started"
                 });
-                state.dbDocId = docRef.id; // 关键：保存ID供后续覆盖使用
+                state.dbDocId = docRef.id;
             } catch(err) { console.warn("Meta upload failed", err); }
 
             const loaded = await loadExamData();
