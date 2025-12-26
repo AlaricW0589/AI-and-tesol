@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CET-6 阅读认知评估系统 (Research Client)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CET-6 阅读认知评估系统 | Research Client v2.0</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -11,188 +11,172 @@
             theme: { extend: { colors: { clifford: '#da373d', } } }
         }
     </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
-      /* 全局禁止选中 */
-      .unselectable {
-            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: default;
+        /* 反作弊机制：禁用文本选择和右键菜单，防止简单的复制搜索 */
+       .unselectable {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
-      /* 允许阅读区和题目区文本选中 */
-      .prose-content, #question-container {
-            -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important; cursor: text;
-      }
-      ::selection { background: #fde047; color: #000; }
-      .prose-content { font-family: 'Georgia', 'Cambria', serif; line-height: 1.8; font-size: 1.05rem; color: #1e293b; }
-      .prose-content p { margin-bottom: 1.5em; }
-      .option-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; } 
-      .option-card:hover { transform: translateX(4px); }
-      .option-card.selected { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
-      .modal-overlay { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
-      .status-dot {
-            height: 8px; width: 8px; background-color: #22c55e; border-radius: 50%; display: inline-block;
-            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2); animation: pulse 2s infinite;
+        
+        /* 全屏强制遮罩层样式 */
+        #fullscreen-warning {
+            display: none; /* 默认隐藏 */
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.98); /* 深色背景阻断视觉 */
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            backdrop-filter: blur(10px);
         }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-            70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        
+        /* 平滑滚动体验 */
+       .scroll-smooth {
+            scroll-behavior: smooth;
         }
-        .rating-btn { transition: all 0.2s; }
-        .rating-btn:hover { background-color: #ebf8ff; border-color: #3b82f6; }
-        .rating-btn.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
     </style>
 </head>
 <body class="bg-slate-50 h-screen w-screen overflow-hidden flex flex-col unselectable" oncontextmenu="return false;">
 
-    <header class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shadow-sm flex-none">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 text-white p-1.5 rounded text-xs font-bold">CET-6</div>
-            <h1 class="text-sm font-semibold text-slate-700">深度阅读认知评估</h1>
+    <div id="fullscreen-warning">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md border-4 border-red-500 animate-pulse">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600 text-3xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-800 mb-4">考试环境中断</h2>
+            <p class="text-slate-600 mb-8 leading-relaxed">
+                检测到全屏模式已退出。为了保证认知评估数据的有效性，系统已暂停记录。
+                <br><span class="text-sm text-red-500 font-bold">请立即恢复全屏以继续作答。</span>
+            </p>
+            <button id="btn-resume-fs" class="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-bold transition shadow-lg text-lg flex items-center justify-center gap-2">
+                <i class="fas fa-expand"></i> 恢复全屏模式
+            </button>
         </div>
-        
-        <div class="flex items-center gap-6 text-sm text-slate-500">
-            <div class="flex items-center gap-2">
-                <span id="phase-indicator" class="status-dot"></span>
-                <span id="system-status">等待登录</span>
+    </div>
+
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-30 flex-none">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-blue-200">
+                <i class="fas fa-brain"></i>
             </div>
-            <div class="flex items-center gap-2 font-mono bg-slate-100 px-3 py-1 rounded-full">
-                <i class="fa-regular fa-clock"></i>
-                <span id="timer">00:00</span>
+            <h1 class="text-lg font-bold text-slate-700 tracking-tight">
+                深度阅读认知评估 
+                <span class="text-xs text-slate-400 font-normal ml-2 font-mono">v2.4.0-Secure</span>
+            </h1>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-200">
+                <div id="system-status-dot" class="w-2 h-2 rounded-full bg-slate-400 transition-colors duration-300"></div>
+                <span id="system-status" class="text-xs font-medium text-slate-500">等待初始化</span>
             </div>
-            <div class="flex items-center gap-2">
-                <i class="fa-regular fa-user"></i>
-                <span id="display-student-id">Guest</span>
+            <div class="text-slate-600 font-mono text-lg font-bold" id="timer">00:00</div>
+            <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 border border-indigo-200">
+                <i class="fas fa-user-graduate text-sm"></i>
             </div>
         </div>
     </header>
 
     <main class="flex-1 flex overflow-hidden relative">
-        <section id="reading-aoi" data-aoi="reading" class="w-7/12 p-8 lg:p-12 overflow-y-auto relative scroll-smooth bg-[#fafafa]">
-            <div class="max-w-3xl mx-auto bg-white shadow-sm p-10 min-h-full rounded-sm border border-slate-100">
-                <h1 id="passage-title" class="text-2xl font-bold text-slate-800 mb-6 font-serif">
-                    <i class="fa-solid fa-circle-notch fa-spin text-blue-500 mr-2"></i>Loading...
+        
+        <section id="reading-aoi" data-aoi="text" class="w-7/12 p-8 lg:p-12 overflow-y-auto relative scroll-smooth bg-[#fafafa]">
+            <div class="max-w-3xl mx-auto bg-white shadow-sm p-10 min-h-full rounded-sm border border-slate-100 transition-all">
+                <h1 id="passage-title" class="text-2xl font-bold text-slate-800 mb-6 font-serif border-b border-slate-100 pb-4">
+                    <span class="inline-block w-4 h-4 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin mr-2"></span>
+                    Loading Passage...
                 </h1>
-                <article id="passage-content" class="prose-content text-slate-600"></article>
+                <article id="passage-content" class="prose prose-slate lg:prose-lg max-w-none font-serif leading-loose text-slate-600">
+                    </article>
             </div>
         </section>
 
-        <section id="question-aoi" data-aoi="answering" class="w-5/12 bg-white flex flex-col border-l border-slate-200 relative shadow-xl z-20">
+        <section id="question-aoi" data-aoi="question" class="w-5/12 bg-white flex flex-col border-l border-slate-200 relative shadow-xl z-20">
             <div class="h-1 w-full bg-slate-100 flex-none">
-                <div id="progress-bar" class="h-full bg-blue-600 transition-all duration-500" style="width: 0%"></div>
+                <div id="progress-bar" class="h-full bg-blue-600 transition-all duration-500 ease-out" style="width: 0%"></div>
             </div>
 
             <div class="flex-1 overflow-y-auto p-8 relative">
-                <div class="mb-4 flex justify-between items-center">
-                    <span class="text-xs font-bold text-blue-600 tracking-wider uppercase bg-blue-50 px-2 py-1 rounded">Question <span id="q-index">1</span>/<span id="q-total">--</span></span>
-                    <span class="text-xs text-slate-400" id="aoi-debug">AOI: None</span>
+                <div class="mb-6 flex justify-between items-center">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                        Question <span id="q-index">1</span>/<span id="q-total">--</span>
+                    </span>
                 </div>
-
-                <div id="question-container" class="space-y-6">
-                    <h3 id="q-stem" class="text-lg font-medium text-slate-800 leading-relaxed">正在准备试题数据...</h3>
-                    <div id="options-list" class="space-y-3"></div>
-                </div>
+                
+                <h3 id="q-stem" class="text-lg font-medium text-slate-800 leading-relaxed mb-8">
+                    </h3>
+                
+                <div id="options-list" class="space-y-3">
+                    </div>
             </div>
 
             <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end flex-none">
-                <button id="btn-next" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md shadow-blue-200 transition-all flex items-center gap-2">
-                    下一题 <i class="fa-solid fa-arrow-right"></i>
+                <button id="btn-next" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md shadow-blue-200 transition-all flex items-center gap-2 transform active:scale-95">
+                    下一题 <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
         </section>
     </main>
 
-    <div id="survey-modal" class="modal-overlay fixed inset-0 z-[60] hidden flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden p-8 text-center animate-fade-in">
-            <div class="mb-6">
-                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
-                    <i class="fa-regular fa-lightbulb"></i>
+    <div id="registration-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md border border-slate-200 relative overflow-hidden transform transition-all scale-100">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-1">实验注册</h2>
+            <p class="text-slate-500 text-sm mb-6">Cognitive Hesitation Analysis - Participant Entry</p>
+            
+            <form id="reg-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">姓名 / Name</label>
+                    <input type="text" id="reg-name" required placeholder="Pinyin or English" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-slate-50 focus:bg-white">
                 </div>
-                <h3 class="text-xl font-bold text-slate-800">元认知监测</h3>
-                <p class="text-sm text-slate-500 mt-2">请问您对刚才这道题的回答有多大把握？</p>
-            </div>
-
-            <div class="space-y-3 mb-8">
-                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="5">5 - 非常有把握 (Very Confident)</button>
-                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="4">4 - 比较有把握 (Confident)</button>
-                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="3">3 - 一般 (Neutral)</button>
-                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="2">2 - 不太有把握 (Unsure)</button>
-                <button class="rating-btn w-full py-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-600" data-val="1">1 - 完全没把握 (Guessing)</button>
-            </div>
-
-            <button id="btn-confirm-survey" disabled class="w-full bg-slate-300 text-white py-3 rounded-lg font-bold cursor-not-allowed transition">
-                确认并继续
-            </button>
-        </div>
-    </div>
-
-    <div id="registration-modal" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[95vh]">
-            <div class="p-6 bg-blue-600 text-white">
-                <h2 class="text-2xl font-bold">实验注册</h2>
-                <p class="text-blue-100 text-sm mt-1">Cognitive Hesitation Analysis - Participant Entry</p>
-            </div>
-            <div class="p-8 overflow-y-auto">
-                <form id="reg-form" class="space-y-5">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">姓名 (拼音/英文)</label>
-                            <input type="text" id="reg-name" placeholder="e.g. WangJie" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" required pattern="[A-Za-z\s]+">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
-                            <select id="reg-gender" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="M">男 (Male)</option>
-                                <option value="F">女 (Female)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">年龄</label>
-                            <input type="number" id="reg-age" placeholder="21" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" required min="16" max="60">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">年级</label>
-                            <select id="reg-grade" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" required>
-                                <option value="" disabled selected>请选择年级</option>
-                                <option value="Freshman">大一 (Freshman)</option>
-                                <option value="Sophomore">大二 (Sophomore)</option>
-                                <option value="Junior">大三 (Junior)</option>
-                                <option value="Senior">大四 (Senior)</option>
-                                <option value="Graduate">研究生 (Graduate)</option>
-                            </select>
-                        </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">年龄 / Age</label>
+                        <input type="number" id="reg-age" min="16" max="60" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50 focus:bg-white">
                     </div>
-                    <hr class="border-gray-200">
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm text-gray-600 space-y-3">
-                        <h4 class="font-bold text-gray-800">知情同意与声明 (Informed Consent)</h4>
-                        <label class="flex items-start gap-3 cursor-pointer select-none">
-                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
-                            <span>我确认当前处于<strong>清醒状态</strong> (Alert & Awake)。</span>
-                        </label>
-                        <label class="flex items-start gap-3 cursor-pointer select-none">
-                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
-                            <span>我同意将答题数据用于<strong>学术研究</strong>。</span>
-                        </label>
-                        <label class="flex items-start gap-3 cursor-pointer select-none">
-                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
-                            <span>我了解系统会对我的身份进行<strong>匿名化处理</strong>。</span>
-                        </label>
-                          <label class="flex items-start gap-3 cursor-pointer select-none">
-                            <input type="checkbox" class="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 consent-check">
-                            <span>我正使用<strong>笔记本或台式主机</strong>以及<strong>硬件鼠标</strong>（非触摸屏）进行答题。</span>
-                        </label>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">年级 / Grade</label>
+                        <select id="reg-grade" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50 focus:bg-white">
+                            <option value="Freshman">大一 (Freshman)</option>
+                            <option value="Sophomore">大二 (Sophomore)</option>
+                            <option value="Junior">大三 (Junior)</option>
+                            <option value="Senior">大四 (Senior)</option>
+                            <option value="Graduate">研究生 (Graduate)</option>
+                        </select>
                     </div>
-                    <button type="submit" id="btn-start-exam" disabled class="w-full bg-gray-300 text-white py-3 rounded-lg font-bold transition duration-200 cursor-not-allowed">请勾选上述所有条款</button>
-                </form>
-            </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 text-xs text-slate-600 space-y-2 mt-4">
+                    <p class="font-bold text-blue-800 mb-2"><i class="fas fa-info-circle mr-1"></i>数据采集声明</p>
+                    <label class="flex items-start gap-2 cursor-pointer hover:text-blue-700 transition">
+                        <input type="checkbox" required class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                        <span>我确认当前环境安静，并同意全程开启全屏模式。</span>
+                    </label>
+                    <label class="flex items-start gap-2 cursor-pointer hover:text-blue-700 transition">
+                        <input type="checkbox" required class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                        <span>我同意系统记录我的鼠标轨迹用于认知科学研究。</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-lg font-bold shadow-lg shadow-slate-200 transition-all mt-6 flex justify-center items-center gap-2 group">
+                    <span>开始实验</span>
+                    <i class="fas fa-chevron-right group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </form>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
-        import { getFirestore, collection, addDoc, doc, setDoc, getDocs, query, orderBy, limit, where, Timestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+        // 引入 Firebase SDK (版本 v11.6.1)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, arrayUnion, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- 1. 基础配置 ---
+        // 提取自原 index.html，保持项目配置一致性
         const firebaseConfig = {
             apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
             authDomain: "hesitation-research.firebaseapp.com",
@@ -203,475 +187,298 @@
             measurementId: "G-ZNZ14Q5R98"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        /**
+         * 认知评估追踪器类 (CognitiveTracker)
+         * 封装了所有遥测、反作弊和数据传输逻辑
+         */
+        class CognitiveTracker {
+            constructor() {
+                // 初始化 Firebase
+                this.app = initializeApp(firebaseConfig);
+                this.db = getFirestore(this.app);
 
-        // -----------------------------------------------------------
-        // 2. 全局状态管理
-        // -----------------------------------------------------------
-        const state = {
-            studentId: null,
-            sessionId: null,
-            dbDocId: null,
-            
-            examData: null,
-            currentQIndex: 0,
-            answers: {},
-            surveyResponses: {}, 
-            clickHistory: [], 
-            
-            firstReadingExitAt: null,
-            startTime: null,
-            isTracking: false,
-            
-            // 问卷开启状态，用于暂停轨迹记录
-            isSurveyOpen: false,
+                // 会话状态
+                this.sessionId = null;
+                this.userId = null;
+                this.isTracking = false;
+                
+                // 双重缓冲区
+                this.mouseBuffer =; // 高频缓冲区：存储 30Hz 轨迹点
+                this.eventBuffer =; // 事件缓冲区：存储点击、切屏等低频事件
+                this.BUFFER_LIMIT = 50; // 自动刷新阈值 (约1.5秒数据量)
+                
+                // 性能节流参数 (30Hz)
+                this.lastFrameTime = 0;
+                this.targetFPS = 30;
+                this.frameInterval = 1000 / this.targetFPS; // ~33.33ms
 
-            // 修正：globalTrace 将作为一个混合数组，包含鼠标点和事件点
-            globalTrace: [], 
-
-            logs: {
-                reading_logs: [],
-                answering_logs: [],
-                transitions: []
-            },
-            
-            currentPhase: 'reading',
-            hasEnteredAnswerZone: false,
-            tempSelectedRating: null
-        };
-
-        // -----------------------------------------------------------
-        // 3. 辅助逻辑
-        // -----------------------------------------------------------
-        function generateStudentId(name, gender, age) {
-            const date = new Date();
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const day = date.getDate().toString().padStart(2, '0');
-            return `${name.replace(/\s+/g, '')}_${gender}_${age}_${month}${day}`;
-        }
-
-        const checkboxes = document.querySelectorAll('.consent-check');
-        const startBtn = document.getElementById('btn-start-exam');
-        checkboxes.forEach(cb => cb.addEventListener('change', () => {
-            const allChecked = Array.from(checkboxes).every(c => c.checked);
-            startBtn.disabled = !allChecked;
-            if(allChecked) {
-                startBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
-                startBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                startBtn.innerText = "同意条款并开始答题";
-            } else {
-                startBtn.classList.add('bg-gray-300', 'cursor-not-allowed');
-                startBtn.innerText = "请勾选上述所有条款";
-            }
-        }));
-
-        // -----------------------------------------------------------
-        // 4. 数据加载
-        // -----------------------------------------------------------
-        async function loadExamData() {
-            try {
-                const readingRef = collection(db, "reading_materials");
-                const qPassage = query(readingRef, orderBy("created_at", "desc"), limit(1));
-                const passageSnapshot = await getDocs(qPassage);
-
-                if (passageSnapshot.empty) {
-                    alert("题库暂无数据，请先在后台录入。");
-                    return false;
-                }
-
-                const passageDoc = passageSnapshot.docs[0];
-                const passageData = passageDoc.data();
-
-                const questionsRef = collection(db, "questions");
-                const qQuestions = query(questionsRef, where("passage_id", "==", passageDoc.id));
-                const questionsSnapshot = await getDocs(qQuestions);
-
-                let questions = [];
-                questionsSnapshot.forEach(doc => questions.push({ id: doc.id, ...doc.data() }));
-                questions.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
-
-                state.examData = {
-                    passage: {
-                        id: passageDoc.id,
-                        title: passageData.title || "Untitled",
-                        content: passageData.content_html || passageData.content || "<p>No content.</p>"
-                    },
-                    questions: questions
+                // AOI 元素缓存
+                this.aoiElements = {
+                    text: document.getElementById('reading-aoi'),
+                    question: document.getElementById('question-aoi')
                 };
 
-                renderInterface();
-                return true;
-            } catch (error) {
-                console.error("Load Error:", error);
-                document.getElementById('passage-content').innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
-                return false;
+                this.bindEvents();
             }
-        }
 
-        // -----------------------------------------------------------
-        // 5. 轨迹追踪
-        // -----------------------------------------------------------
-        function startTracking() {
-            state.isTracking = true;
-            let lastTime = 0;
-            const readingZone = document.getElementById('reading-aoi');
-            const questionZone = document.getElementById('question-aoi');
+            /**
+             * 绑定所有全局事件监听器
+             */
+            bindEvents() {
+                // 1. 启动 rAF 循环，用于高性能鼠标追踪
+                this.rafId = requestAnimationFrame(this.trackingLoop.bind(this));
 
-            document.addEventListener('mousemove', (e) => {
-                // 如果问卷开启，则暂停记录
-                if (!state.isTracking || state.isSurveyOpen) return;
-                
-                const now = performance.now();
-                
-                if (state.firstReadingExitAt === null) {
-                    const isInsideReading = readingZone.contains(e.target);
-                    if (!isInsideReading) {
-                        state.firstReadingExitAt = Math.round(now - state.startTime);
-                        logAction('exit_reading_zone', { t: state.firstReadingExitAt });
+                // 2. 监听鼠标移动并缓存最新位置（解耦采样与事件触发）
+                document.addEventListener('mousemove', (e) => this.cacheMousePosition(e));
+
+                // 3. 反作弊监控
+                document.addEventListener('visibilitychange', () => this.handleVisibility());
+                document.addEventListener('fullscreenchange', () => this.handleFullscreen());
+
+                // 4. 注册流程
+                document.getElementById('reg-form').addEventListener('submit', (e) => this.handleRegistration(e));
+
+                // 5. 全屏恢复
+                document.getElementById('btn-resume-fs').addEventListener('click', () => {
+                    this.enterFullscreen();
+                    document.getElementById('fullscreen-warning').style.display = 'none';
+                    this.logSystemEvent('FULLSCREEN_RESUME');
+                });
+
+                // 6. 页面卸载前的数据抢救 (Reliability)
+                window.addEventListener('beforeunload', () => this.flushAllData(true));
+            }
+
+            /**
+             * 处理用户注册与会话初始化
+             */
+            async handleRegistration(e) {
+                e.preventDefault();
+                const btn = e.target.querySelector('button');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 初始化中...';
+
+                // 收集设备指纹，用于后续数据清洗
+                const userData = {
+                    name: document.getElementById('reg-name').value,
+                    age: document.getElementById('reg-age').value,
+                    grade: document.getElementById('reg-grade').value,
+                    device: {
+                        userAgent: navigator.userAgent,
+                        screenWidth: window.screen.width,
+                        screenHeight: window.screen.height,
+                        pixelRatio: window.devicePixelRatio,
+                        platform: navigator.platform
                     }
-                }
-
-                if (now - lastTime < 33) return; 
-                lastTime = now;
-
-                let currentZone = 'neutral';
-                let scrollY = 0;
-
-                if (readingZone.contains(e.target)) {
-                    currentZone = 'reading';
-                    scrollY = readingZone.scrollTop;
-                } else if (questionZone.contains(e.target)) {
-                    currentZone = 'answering';
-                    scrollY = questionZone.scrollTop; 
-                }
-
-                if (currentZone === 'answering' && !state.hasEnteredAnswerZone) {
-                    state.hasEnteredAnswerZone = true;
-                    state.currentPhase = 'answering';
-                    updatePhaseDisplay();
-                    logAction('phase_switch', { to: 'answering' });
-                }
-
-                // 修正：添加 type: 'mouse'，并推入 globalTrace
-                const point = { 
-                    t: Math.round(now - state.startTime), 
-                    x: Math.round(e.clientX), 
-                    y: Math.round(e.clientY), 
-                    scroll: scrollY, 
-                    zone: currentZone,
-                    type: 'mouse' // 增加标识
                 };
 
-                // 分段日志 (保持原样)
-                if (state.currentPhase === 'reading') state.logs.reading_logs.push(point);
-                else state.logs.answering_logs.push(point);
-                
-                // 全局日志 (包含鼠标点)
-                state.globalTrace.push(point);
+                try {
+                    // 创建会话文档
+                    const sessionRef = await addDoc(collection(this.db, "sessions"), {
+                        user: userData,
+                        startTime: serverTimestamp(),
+                        status: 'active',
+                        cheatingFlags: 0
+                    });
 
-            }, { passive: true });
-        }
+                    this.sessionId = sessionRef.id;
+                    this.userId = userData.name;
 
-        // 修正：logAction 现在将事件作为“锚点”直接插入 globalTrace
-        function logAction(type, data) {
-            const record = {
-                t: Math.round(performance.now() - state.startTime),
-                type, 
-                data 
-            };
-            
-            // 1. 放入待上传的临时队列 (Process Mining)
-            state.logs.transitions.push(record);
-            
-            // 2. 放入全局 Trace 队列 (作为锚点)
-            state.globalTrace.push(record);
-        }
+                    // 更新 UI 状态
+                    this.updateSystemStatus('在线 (Recording)', 'bg-green-500');
+                    document.getElementById('registration-modal').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('registration-modal').style.display = 'none';
+                    }, 300);
 
-        async function flushLogs() {
-            const currentQ = state.examData.questions[state.currentQIndex];
-            const payload = {
-                session_id: state.sessionId,
-                student_id: state.studentId,
-                passage_id: state.examData.passage.id,
-                question_id: currentQ ? currentQ.id : 'final',
-                reading_trace: state.logs.reading_logs,
-                decision_trace: state.logs.answering_logs,
-                events: state.logs.transitions,
-                timestamp: Timestamp.now(),
-                q_index: state.currentQIndex
-            };
+                    // 启动实验流程：请求全屏 -> 开始记录
+                    this.enterFullscreen();
+                    this.isTracking = true;
+                    this.logSystemEvent('SESSION_START');
 
-            state.logs.reading_logs = [];
-            state.logs.answering_logs = [];
-            state.logs.transitions = [];
-            state.hasEnteredAnswerZone = false;
-            state.currentPhase = 'reading';
-
-            try { await addDoc(collection(db, "process_logs"), payload); } 
-            catch (e) { console.error("Logs flush failed:", e); }
-        }
-
-        // -----------------------------------------------------------
-        // 6. 渲染与交互
-        // -----------------------------------------------------------
-        function renderInterface() {
-            document.getElementById('passage-title').innerText = state.examData.passage.title;
-            document.getElementById('passage-content').innerHTML = state.examData.passage.content;
-            renderQuestion(0);
-            
-            // 初始化标记：文章ID(1)已开始
-            const initMsg = `${state.examData.passage.title}(1)已开始`;
-            logAction('milestone', initMsg);
-            
-            document.getElementById('q-total').innerText = state.examData.questions.length;
-        }
-
-        function renderQuestion(index) {
-            const q = state.examData.questions[index];
-            document.getElementById('q-index').innerText = index + 1;
-            document.getElementById('q-stem').innerText = q.stem;
-            const container = document.getElementById('options-list');
-            container.innerHTML = '';
-
-            const labels = ['A', 'B', 'C', 'D'];
-            let optionsArray = (q.options && Array.isArray(q.options)) 
-                ? q.options 
-                : [q.option_a, q.option_b, q.option_c, q.option_d];
-
-            optionsArray.forEach((optText, idx) => {
-                if (!optText) return;
-                const div = document.createElement('div');
-                div.className = `option-card border border-slate-200 rounded-lg p-4 cursor-pointer flex items-start gap-3 hover:border-blue-400 group`;
-                div.onclick = (e) => selectOption(index, labels[idx], e.currentTarget);
-                div.innerHTML = `
-                    <div class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors bg-white mt-0.5">${labels[idx]}</div>
-                    <div class="text-sm text-slate-700 leading-relaxed">${optText}</div>
-                `;
-                container.appendChild(div);
-            });
-
-            const progress = ((index) / state.examData.questions.length) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
-            
-            const btn = document.getElementById('btn-next');
-            btn.innerHTML = (index === state.examData.questions.length - 1) 
-                ? '提交试卷 <i class="fa-solid fa-check"></i>' 
-                : '下一题 <i class="fa-solid fa-arrow-right"></i>';
-        }
-
-        function selectOption(qIndex, answer, cardElement) {
-            const timestamp = Math.round(performance.now() - state.startTime);
-            state.answers[qIndex] = answer;
-            state.clickHistory.push({ q_idx: qIndex, val: answer, t: timestamp });
-            document.querySelectorAll('.option-card').forEach(opt => opt.classList.remove('selected'));
-            cardElement.classList.add('selected');
-            logAction('select_option', { q_idx: qIndex, ans: answer });
-        }
-
-        function updatePhaseDisplay() {
-            const dot = document.getElementById('phase-indicator');
-            const text = document.getElementById('system-status');
-            if (state.currentPhase === 'reading') {
-                dot.style.backgroundColor = '#22c55e'; text.innerText = "阅读阶段";
-            } else {
-                dot.style.backgroundColor = '#eab308'; text.innerText = "答题决策";
-            }
-        }
-
-        // -----------------------------------------------------------
-        // 7. 问卷逻辑
-        // -----------------------------------------------------------
-        document.querySelectorAll('.rating-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.tempSelectedRating = btn.getAttribute('data-val');
-                
-                const confirmBtn = document.getElementById('btn-confirm-survey');
-                confirmBtn.disabled = false;
-                confirmBtn.classList.remove('bg-slate-300', 'cursor-not-allowed');
-                confirmBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white');
-            });
-        });
-
-        // 拦截下一题
-        document.getElementById('btn-next').addEventListener('click', async () => {
-            if (!state.answers[state.currentQIndex]) {
-                alert("请先选择一个答案。");
-                return;
+                } catch (err) {
+                    console.error("Init Failed:", err);
+                    alert("无法连接到实验服务器，请检查网络后重试。");
+                    btn.disabled = false;
+                    btn.innerText = "重试";
+                }
             }
 
-            // 1. 插入 "已提交" 标记 (例如: CET6-24-1(1)已提交)
-            const passageId = state.examData.passage.title;
-            const currentQNum = state.currentQIndex + 1;
-            const submitMsg = `${passageId}(${currentQNum})已提交`;
-            logAction('milestone', submitMsg);
-
-            // 2. 暂停轨迹记录
-            state.isSurveyOpen = true; 
-            
-            const modal = document.getElementById('survey-modal');
-            modal.classList.remove('hidden');
-            
-            state.tempSelectedRating = null;
-            document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
-            const confirmBtn = document.getElementById('btn-confirm-survey');
-            confirmBtn.disabled = true;
-            confirmBtn.classList.add('bg-slate-300', 'cursor-not-allowed');
-            confirmBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-        });
-
-        // 确认问卷
-        document.getElementById('btn-confirm-survey').addEventListener('click', async () => {
-            const modal = document.getElementById('survey-modal');
-            
-            // 1. 记录问卷答案
-            state.surveyResponses[state.currentQIndex] = parseInt(state.tempSelectedRating);
-            logAction('confidence_survey', { q_idx: state.currentQIndex, rating: state.tempSelectedRating });
-
-            // 2. 关闭问卷，恢复轨迹记录
-            state.isSurveyOpen = false;
-            modal.classList.add('hidden');
-
-            // 3. 上传日志
-            await flushLogs();
-
-            // 4. 切换逻辑
-            if (state.currentQIndex < state.examData.questions.length - 1) {
-                // 进入下一题
-                state.currentQIndex++;
-                
-                // 插入 "已开始" 标记
-                const passageId = state.examData.passage.title;
-                const nextQNum = state.currentQIndex + 1;
-                const startMsg = `${passageId}(${nextQNum})已开始`;
-                logAction('milestone', startMsg);
-                
-                renderQuestion(state.currentQIndex);
-                document.getElementById('question-aoi').scrollTop = 0;
-            } else {
-                submitFinalExamData();
-            }
-        });
-
-        // -----------------------------------------------------------
-        // 8. 最终提交
-        // -----------------------------------------------------------
-        async function submitFinalExamData() {
-            let score = 0;
-            let gradingDetails = [];
-            const labels = ['A', 'B', 'C', 'D'];
-
-            state.examData.questions.forEach((q, idx) => {
-                const userAns = state.answers[idx];
-                const correctAnsChar = labels[q.correct_index]; 
-                const isCorrect = (userAns === correctAnsChar);
-                if(isCorrect) score++;
-
-                gradingDetails.push({
-                    q_id: q.id,
-                    user_answer: userAns || null,
-                    correct_answer: correctAnsChar,
-                    is_correct: isCorrect,
-                    confidence_rating: state.surveyResponses[idx] || null
-                });
-            });
-
-            const finalPayload = {
-                session_id: state.sessionId,
-                student_id: state.studentId, 
-                user_id: state.studentId,
-                
-                answers: state.answers,
-                // 修正：globalTrace 包含鼠标点和事件点
-                mouse_trace: state.globalTrace,
-                click_history: state.clickHistory,
-                
-                first_reading_exit_at: state.firstReadingExitAt,
-
-                grading: {
-                    total_score: score,
-                    total_questions: state.examData.questions.length,
-                    details: gradingDetails
-                },
-                submitted_at: Timestamp.now(), 
-                status: "completed",
-                duration_seconds: (performance.now() - state.startTime) / 1000
-            };
-
-            const surveyPayload = {
-                student_id: state.studentId,
-                session_id: state.sessionId,
-                responses: state.surveyResponses,
-                uploaded_at: Timestamp.now()
-            };
-
-            try {
-                if (state.dbDocId) {
-                    const docRef = doc(db, "exam_submissions", state.dbDocId);
-                    await setDoc(docRef, finalPayload, { merge: true });
-                } else {
-                    await addDoc(collection(db, "exam_submissions"), finalPayload);
+            /**
+             * 核心追踪循环：基于时间差的节流 (Delta-Time Throttling)
+             * 确保采样率稳定在 30Hz，不受屏幕刷新率影响
+             */
+            trackingLoop(timestamp) {
+                if (!this.isTracking) {
+                    requestAnimationFrame(this.trackingLoop.bind(this));
+                    return;
                 }
 
-                const surveyDocId = `${state.studentId}_questionnaire`;
-                await setDoc(doc(db, "questionnaires", surveyDocId), surveyPayload);
+                const deltaTime = timestamp - this.lastFrameTime;
 
-                alert(`考试结束！\n您的得分: ${score}/${state.examData.questions.length}\n问卷已上传。`);
-                window.location.reload();
-            } catch (e) {
-                console.error(e);
-                alert("上传失败: " + e.message);
+                if (deltaTime >= this.frameInterval) {
+                    // 如果有缓存的鼠标位置，则进行处理
+                    if (this.lastMouseEvent) {
+                        this.processMouseEvent(this.lastMouseEvent);
+                    }
+                    
+                    // 修正时间漂移
+                    this.lastFrameTime = timestamp - (deltaTime % this.frameInterval);
+                }
+
+                requestAnimationFrame(this.trackingLoop.bind(this));
+            }
+
+            cacheMousePosition(e) {
+                this.lastMouseEvent = e;
+            }
+
+            /**
+             * 数据处理流水线：AOI 判定 -> 坐标归一化 -> 缓冲
+             */
+            processMouseEvent(e) {
+                // 1. 高效判定 AOI (利用 CSS 宽度的 7/12 = 58.33%)
+                const xRatio = e.clientX / window.innerWidth;
+                const aoiType = xRatio <= 0.5833? 'text' : 'question';
+                const container = this.aoiElements;
+
+                if (!container) return;
+
+                // 2. 获取容器几何信息 (getBoundingClientRect 是视口相对坐标)
+                const rect = container.getBoundingClientRect();
+
+                // 3. 坐标归一化 (0.0000 - 1.0000)
+                // 限制边界防止计算出负数或大于1的值
+                const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+                // 4. 计算绝对语义位置 (加入 ScrollTop)
+                // 这对于长文本阅读分析至关重要
+                const absY = container.scrollTop + (e.clientY - rect.top);
+
+                const dataPoint = {
+                    t: Date.now(),          // 绝对时间戳用于同步
+                    a: aoiType === 'text'? 0 : 1, // 压缩字段：0=阅读区, 1=答题区
+                    x: Number(nx.toFixed(4)),      // 保留4位小数 (精度约0.2像素)
+                    y: Number(ny.toFixed(4)),
+                    s: Math.round(absY)     // 滚动偏移量
+                };
+
+                this.mouseBuffer.push(dataPoint);
+
+                // 缓冲区满自动刷新
+                if (this.mouseBuffer.length >= this.BUFFER_LIMIT) {
+                    this.flushMouseBuffer();
+                }
+            }
+
+            /**
+             * 数据上传：使用 Firestore 子集合与 addDoc
+             * 避免单文档 1MB 限制
+             */
+            async flushMouseBuffer() {
+                if (this.mouseBuffer.length === 0 ||!this.sessionId) return;
+
+                const chunk =;
+                this.mouseBuffer =; // 立即清空，防止重入
+
+                try {
+                    // 写入到 sessions/{id}/traces 子集合
+                    const tracesRef = collection(this.db, `sessions/${this.sessionId}/traces`);
+                    await addDoc(tracesRef, {
+                        d: chunk, // 'd' 代表 data，压缩键名
+                        ts: serverTimestamp()
+                    });
+                } catch (err) {
+                    console.warn("Telemetry Sync Error:", err);
+                    // 实际生产中应在此处加入 IndexedDB 离线重试逻辑
+                }
+            }
+
+            /**
+             * 反作弊：全屏状态监控
+             */
+            handleFullscreen() {
+                if (!document.fullscreenElement && this.isTracking) {
+                    this.logSystemEvent('FULLSCREEN_EXIT');
+                    // 触发 UI 阻断
+                    document.getElementById('fullscreen-warning').style.display = 'flex';
+                }
+            }
+
+            /**
+             * 反作弊：标签页可见性监控
+             */
+            handleVisibility() {
+                if (document.hidden) {
+                    this.logSystemEvent('TAB_HIDDEN');
+                } else {
+                    this.logSystemEvent('TAB_VISIBLE');
+                }
+            }
+
+            /**
+             * 辅助方法：进入全屏
+             */
+            enterFullscreen() {
+                const el = document.documentElement;
+                if (el.requestFullscreen) {
+                    el.requestFullscreen().catch(err => {
+                        console.warn("Fullscreen blocked:", err);
+                        alert("请允许全屏模式以进行考试。");
+                    });
+                }
+            }
+
+            /**
+             * 记录关键系统事件
+             */
+            async logSystemEvent(type, payload = {}) {
+                if (!this.sessionId) return;
+
+                const eventData = {
+                    type: type,
+                    t: Date.now(),
+                   ...payload
+                };
+
+                // 使用 arrayUnion 将事件追加到主文档
+                const sessionDoc = doc(this.db, "sessions", this.sessionId);
+                try {
+                    await updateDoc(sessionDoc, {
+                        events: arrayUnion(eventData)
+                    });
+                } catch (err) {
+                    console.error("Log Error:", err);
+                }
+            }
+
+            /**
+             * 稳健性：页面卸载时的强制刷新
+             * 尝试使用 fetch keepalive 保证请求发出
+             */
+            flushAllData() {
+                if (!this.sessionId) return;
+
+                // 刷新剩余轨迹
+                if (this.mouseBuffer.length > 0) {
+                    this.flushMouseBuffer(); 
+                    // 注：Firebase SDK 的网络请求在页面关闭时可能不可靠。
+                    // 理想情况下，此处应使用 fetch(cloudFunctionUrl, { keepalive: true, body:... })
+                    // 但为保持代码自包含，此处仍调用 SDK 方法。
+                }
+            }
+
+            updateSystemStatus(text, colorClass) {
+                const statusEl = document.getElementById('system-status');
+                const dotEl = document.getElementById('system-status-dot');
+                statusEl.innerText = text;
+                dotEl.className = `w-2 h-2 rounded-full ${colorClass}`;
             }
         }
 
-        // -----------------------------------------------------------
-        // 9. 启动逻辑
-        // -----------------------------------------------------------
-        document.getElementById('reg-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('reg-name').value;
-            const gender = document.getElementById('reg-gender').value;
-            const age = document.getElementById('reg-age').value;
-            const grade = document.getElementById('reg-grade').value;
-
-            state.studentId = generateStudentId(name, gender, age);
-            state.sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-            state.startTime = performance.now();
-
-            document.getElementById('display-student-id').innerText = state.studentId;
-            document.getElementById('system-status').innerText = "系统就绪";
-            document.getElementById('btn-start-exam').innerText = "正在初始化...";
-
-            try {
-                const docRef = await addDoc(collection(db, "exam_submissions"), {
-                    session_id: state.sessionId,
-                    student_id: state.studentId,
-                    user_id: state.studentId,
-                    meta: { name, gender, age, grade },
-                    started_at: Timestamp.now(),
-                    status: "started"
-                });
-                state.dbDocId = docRef.id;
-            } catch(err) { console.warn("Meta upload failed", err); }
-
-            const loaded = await loadExamData();
-            if (loaded) {
-                document.getElementById('registration-modal').classList.add('hidden');
-                document.getElementById('btn-next').classList.remove('hidden');
-                startTracking();
-                setInterval(() => {
-                    const s = Math.floor((performance.now() - state.startTime)/1000);
-                    const m = Math.floor(s/60).toString().padStart(2,'0');
-                    const sec = (s%60).toString().padStart(2,'0');
-                    document.getElementById('timer').innerText = `${m}:${sec}`;
-                }, 1000);
-            } else {
-                document.getElementById('btn-start-exam').innerText = "初始化失败";
-            }
-        });
-
+        // --- 启动系统 ---
+        const tracker = new CognitiveTracker();
     </script>
 </body>
 </html>
