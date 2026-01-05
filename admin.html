@@ -372,9 +372,9 @@
     </main>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, writeBatch, serverTimestamp, getDocs, query, orderBy, limit, deleteDoc, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, writeBatch, serverTimestamp, getDocs, query, orderBy, limit, deleteDoc, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =========================================================================================
         // Config & Init
@@ -626,10 +626,15 @@
                 // Client side sort desc
                 libraryPassages.sort((a,b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
 
-                renderLibraryList();
+                if (libraryPassages.length === 0) {
+                     listEl.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs">暂无文章</div>';
+                } else {
+                     renderLibraryList();
+                }
             } catch (e) {
-                console.error(e);
-                listEl.innerHTML = `<div class="text-red-500 p-4 text-xs">Failed to load: ${e.message}</div>`;
+                console.error("Library Load Error:", e);
+                listEl.innerHTML = `<div class="text-red-500 p-4 text-xs">加载失败: ${e.message}<br>请检查控制台(F12)获取详情</div>`;
+                window.showToast("题库列表加载失败", "error");
             }
         };
 
@@ -668,62 +673,79 @@
             
             // Fetch Questions
             const qListEl = document.getElementById('view-q-list');
-            qListEl.innerHTML = '<div class="text-slate-400 text-xs">Loading questions...</div>';
+            qListEl.innerHTML = '<div class="text-slate-400 text-xs text-center py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading questions...</div>';
             
             try {
-                // Try simple where clause
+                // Try targeted query (Requires Index)
                 const qQuery = query(getCollectionRef("questions"), where("passage_id", "==", id));
                 const snapshot = await getDocs(qQuery);
-                qListEl.innerHTML = '';
-                
-                if(snapshot.empty) qListEl.innerHTML = '<div class="text-slate-400 text-xs italic">No questions found.</div>';
-
-                snapshot.forEach(doc => {
-                    const q = doc.data();
-                    const qEl = document.createElement('div');
-                    qEl.className = "bg-white p-4 rounded border border-slate-200 relative group";
-                    qEl.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                             <div class="font-bold text-sm text-slate-700 w-10/12">${q.stem}</div>
-                             <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition">
-                                <button onclick="window.editQuestion('${doc.id}', '${q.stem.replace(/'/g, "\\'")}', '${q.correct_index}')" class="text-blue-500 hover:bg-blue-50 p-1 rounded"><i class="fa-solid fa-pen"></i></button>
-                                <button onclick="window.deleteQuestion('${doc.id}')" class="text-red-500 hover:bg-red-50 p-1 rounded"><i class="fa-solid fa-trash"></i></button>
-                             </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
-                             ${(q.options || []).map((opt, i) => `<div class="${i === q.correct_index ? 'text-green-600 font-bold' : ''}">${String.fromCharCode(65+i)}. ${opt}</div>`).join('')}
-                        </div>
-                    `;
-                    qListEl.appendChild(qEl);
-                });
+                renderQuestions(snapshot.docs.map(d => ({id: d.id, ...d.data()})), qListEl);
 
             } catch(e) {
-                console.warn(e);
-                // Fallback: fetch all and filter
-                const allQ = await getDocs(getCollectionRef("questions"));
-                qListEl.innerHTML = '';
-                allQ.forEach(doc => {
-                    const q = doc.data();
-                    if(q.passage_id === id) {
-                        const qEl = document.createElement('div');
-                        qEl.className = "bg-white p-4 rounded border border-slate-200 relative group";
-                        qEl.innerHTML = `
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="font-bold text-sm text-slate-700 w-10/12">${q.stem}</div>
-                                <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition">
-                                    <button onclick="window.editQuestion('${doc.id}', '${q.stem.replace(/'/g, "\\'")}', '${q.correct_index}')" class="text-blue-500 hover:bg-blue-50 p-1 rounded"><i class="fa-solid fa-pen"></i></button>
-                                    <button onclick="window.deleteQuestion('${doc.id}')" class="text-red-500 hover:bg-red-50 p-1 rounded"><i class="fa-solid fa-trash"></i></button>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
-                                ${(q.options || []).map((opt, i) => `<div class="${i === q.correct_index ? 'text-green-600 font-bold' : ''}">${String.fromCharCode(65+i)}. ${opt}</div>`).join('')}
-                            </div>
-                        `;
-                        qListEl.appendChild(qEl);
+                console.warn("Question Fetch Error:", e);
+                
+                // Special handling for missing index
+                if (e.code === 'failed-precondition' && e.message.includes('index')) {
+                    const indexUrl = e.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0];
+                    if (indexUrl) {
+                        console.error("需要创建索引!点击链接: ", indexUrl);
+                        window.showToast("需要创建数据库索引，请查看控制台", "error");
                     }
-                });
+                }
+
+                // Fallback: fetch all and filter client-side
+                console.info("Trying fallback: Fetching all questions...");
+                try {
+                    const allQ = await getDocs(getCollectionRef("questions"));
+                    const filtered = [];
+                    allQ.forEach(doc => {
+                        const data = doc.data();
+                        if(data.passage_id === id) filtered.push({id: doc.id, ...data});
+                    });
+                    renderQuestions(filtered, qListEl);
+                } catch (fallbackErr) {
+                     qListEl.innerHTML = `<div class="text-red-500 p-4 text-xs">无法加载题目: ${fallbackErr.message}</div>`;
+                }
             }
         };
+
+        function renderQuestions(questions, container) {
+             container.innerHTML = '';
+             if(questions.length === 0) {
+                 container.innerHTML = '<div class="text-slate-400 text-xs italic text-center py-4">暂无关联题目 (No questions found)</div>';
+                 return;
+             }
+
+             // Sort by creation time if available
+             questions.sort((a,b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+
+             questions.forEach(q => {
+                const qEl = document.createElement('div');
+                qEl.className = "bg-white p-4 rounded border border-slate-200 relative group transition hover:shadow-md";
+                qEl.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                            <div class="font-bold text-sm text-slate-700 w-10/12 leading-relaxed">${q.stem}</div>
+                            <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="window.editQuestion('${q.id}', '${q.stem.replace(/'/g, "\\'")}', '${q.correct_index}')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="window.deleteQuestion('${q.id}')" class="text-red-500 hover:bg-red-50 p-1.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2 text-xs text-slate-500 mt-3">
+                            ${(q.options || []).map((opt, i) => `
+                                <div class="flex items-center gap-2 ${i === parseInt(q.correct_index) ? 'text-green-700 font-bold bg-green-50 p-1 rounded' : 'p-1'}">
+                                    <span class="w-4 h-4 rounded-full border flex items-center justify-center text-[10px] ${i === parseInt(q.correct_index) ? 'border-green-500 bg-green-100' : 'border-slate-300'}">${String.fromCharCode(65+i)}</span>
+                                    <span>${opt}</span>
+                                </div>
+                            `).join('')}
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-slate-100 flex gap-4 text-[10px] text-slate-400">
+                        <span>Diff: ${q.irt_parameters?.b || '-'}</span>
+                        <span>Bloom: ${q.cognitive_dimension?.bloom_level || '-'}</span>
+                    </div>
+                `;
+                container.appendChild(qEl);
+            });
+        }
 
         // --- Library Actions ---
         window.deletePassage = function() {
