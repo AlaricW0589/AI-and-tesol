@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Test Client</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { clifford: '#da373d', } } }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* Anti-cheat: disable text selection and right-click menu */
+       .unselectable {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* Fullscreen warning overlay */
+        #fullscreen-warning {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.98);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Smooth scrolling */
+       .scroll-smooth {
+            scroll-behavior: smooth;
+        }
+
+        /* Confidence modal */
+        #confidence-modal {
+            display: none;
+        }
+        #confidence-modal.show {
+            display: flex;
+        }
+
+        /* Thank you modal */
+        #thank-you-modal {
+            display: none;
+        }
+        #thank-you-modal.show {
+            display: flex;
+        }
+
+        /* Instructions modal */
+        #instructions-modal {
+            display: none;
+        }
+        #instructions-modal.show {
+            display: flex;
+        }
+
+        /* Practice question modal */
+        #practice-modal {
+            display: none;
+        }
+        #practice-modal.show {
+            display: flex;
+        }
+
+        /* Countdown modal */
+        #countdown-modal {
+            display: none;
+        }
+        #countdown-modal.show {
+            display: flex;
+        }
+
+        /* Warning toast */
+        #warning-toast {
+            display: none;
+        }
+        #warning-toast.show {
+            display: flex;
+        }
+
+        .option-aoi {
+            position: relative;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen w-screen overflow-hidden flex flex-col unselectable" oncontextmenu="return false;">
+
+    <!-- Fullscreen Warning -->
+    <div id="fullscreen-warning">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md border-4 border-red-500 animate-pulse">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600 text-3xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-800 mb-4">Test Environment Interrupted</h2>
+            <p class="text-slate-600 mb-8 leading-relaxed">
+                Fullscreen mode has been exited. The system has paused recording to ensure data validity.
+                <br><span class="text-sm text-red-500 font-bold">Please restore fullscreen mode immediately to continue.</span>
+            </p>
+            <button id="btn-resume-fs" class="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-bold transition shadow-lg text-lg flex items-center justify-center gap-2">
+                <i class="fas fa-expand"></i> Restore Fullscreen Mode
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Switch Warning (ALT+TAB detection) -->
+    <div id="tab-switch-warning" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); z-index: 9998; flex-direction: column; align-items: center; justify-content: center; text-align: center; backdrop-filter: blur(10px);">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md border-4 border-orange-500">
+            <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 text-orange-600 text-3xl">
+                <i class="fas fa-window-restore"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-800 mb-4">Window Switch Detected</h2>
+            <p class="text-slate-600 mb-8 leading-relaxed">
+                You have switched away from the test window. This behavior has been recorded.
+                <br><span class="text-sm text-orange-500 font-bold">Please click below to continue the test.</span>
+            </p>
+            <button id="btn-resume-tab" class="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold transition shadow-lg text-lg flex items-center justify-center gap-2">
+                <i class="fas fa-arrow-right"></i> Continue Test
+            </button>
+        </div>
+    </div>
+
+    <!-- Confidence Questionnaire Modal -->
+    <div id="confidence-modal" data-aoi-type="Questionnaires" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md border border-slate-200 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500"></div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Confidence Assessment</h3>
+            <p class="text-slate-500 text-sm mb-6">How confident are you about answering this question correctly?</p>
+            <div class="space-y-3" id="confidence-options">
+                <button data-confidence="5" class="confidence-btn w-full p-4 border rounded-lg text-left hover:border-green-500 hover:bg-green-50 transition flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-sm font-bold">5</span>
+                    <span class="text-slate-700">I am very confident</span>
+                </button>
+                <button data-confidence="4" class="confidence-btn w-full p-4 border rounded-lg text-left hover:border-blue-500 hover:bg-blue-50 transition flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">4</span>
+                    <span class="text-slate-700">Fairly confident</span>
+                </button>
+                <button data-confidence="3" class="confidence-btn w-full p-4 border rounded-lg text-left hover:border-yellow-500 hover:bg-yellow-50 transition flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-sm font-bold">3</span>
+                    <span class="text-slate-700">Uncertain / Not sure</span>
+                </button>
+                <button data-confidence="2" class="confidence-btn w-full p-4 border rounded-lg text-left hover:border-orange-500 hover:bg-orange-50 transition flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-sm font-bold">2</span>
+                    <span class="text-slate-700">Not very confident</span>
+                </button>
+                <button data-confidence="1" class="confidence-btn w-full p-4 border rounded-lg text-left hover:border-red-500 hover:bg-red-50 transition flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-sm font-bold">1</span>
+                    <span class="text-slate-700">I am guessing / Random choice</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thank You Modal -->
+    <div id="thank-you-modal" class="fixed inset-0 bg-white z-50 items-center justify-center">
+        <div class="text-center p-12 max-w-lg">
+            <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-8">
+                <i class="fas fa-check-circle text-green-600 text-5xl"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-4">Thank You for Completing the Test!</h2>
+            <p class="text-slate-600 mb-6 text-lg">Your test data has been successfully exported.</p>
+            <div class="bg-slate-50 p-6 rounded-xl text-left mb-8">
+                <div class="text-sm space-y-2" id="result-summary">
+                    <!-- Dynamic result summary -->
+                </div>
+            </div>
+            <button id="btn-redownload" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl font-bold transition shadow-lg text-lg flex items-center justify-center gap-2 mb-4">
+                <i class="fas fa-download"></i> Download Data Files Again
+            </button>
+            <p class="text-sm text-slate-400">Please ensure both JSON data files have been saved to your device.</p>
+            <p class="text-sm text-slate-400 mt-2">You may now safely close this page.</p>
+        </div>
+    </div>
+
+    <!-- Test Instructions Modal -->
+    <div id="instructions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-2xl border border-slate-200 relative overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Test Instructions</h2>
+            <p class="text-slate-500 text-sm mb-6">Please read the following instructions carefully before proceeding.</p>
+            
+            <div class="bg-slate-50 p-6 rounded-lg border border-slate-200 mb-6" id="instructions-content">
+                <!-- 
+                    ============================================
+                    TEST INSTRUCTIONS CONTENT - TO BE FILLED
+                    ============================================
+                    Add your test instructions here. Example:
+                    
+                    <h3 class="font-bold text-lg mb-3">General Guidelines</h3>
+                    <ul class="list-disc pl-5 space-y-2 text-slate-600">
+                        <li>Read each passage carefully before answering questions</li>
+                        <li>Select the best answer for each question</li>
+                        <li>Do not exit fullscreen mode during the test</li>
+                        <li>...</li>
+                    </ul>
+                    
+                    ============================================
+                -->
+                <p class="text-slate-500 italic text-center py-8">[Test instructions will be added here]</p>
+            </div>
+
+            <label class="flex items-start gap-3 cursor-pointer p-4 border rounded-lg hover:bg-blue-50 transition mb-6">
+                <input type="checkbox" id="instructions-checkbox" class="mt-1 rounded text-blue-600 focus:ring-blue-500 w-5 h-5">
+                <span class="text-slate-700">I have read and understood the above instructions and agree to proceed with the test.</span>
+            </label>
+
+            <button id="btn-instructions-confirm" disabled class="w-full bg-slate-400 text-white py-3.5 rounded-lg font-bold shadow-lg transition-all flex justify-center items-center gap-2 cursor-not-allowed">
+                <span>Confirm and Continue</span>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Practice Question Modal -->
+    <div id="practice-modal" class="fixed inset-0 bg-white z-50 items-center justify-center">
+        <div class="w-full h-full flex">
+            <!-- Left: Reading Area -->
+            <div class="w-7/12 p-8 lg:p-12 overflow-y-auto bg-[#fafafa]">
+                <div class="max-w-3xl mx-auto bg-white shadow-sm p-10 min-h-full rounded-sm border border-slate-100">
+                    <h1 class="text-2xl font-bold text-slate-800 mb-6 font-serif border-b border-slate-100 pb-4">
+                        Instructions and Tips
+                    </h1>
+                    <div class="prose prose-slate lg:prose-lg max-w-none font-serif leading-loose text-slate-600">
+                        <p>1. This section contains the reading material. Please read the provided text carefully before answering the questions.</p>
+                        <p>2. This test consists of 2 sections with a total of 8 multiple-choice questions.</p>
+                        <p>3. Please ensure your mouse position reflects where you are currently looking.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Question Area -->
+            <div class="w-5/12 bg-white flex flex-col border-l border-slate-200 shadow-xl">
+                <div class="h-1 w-full bg-slate-100 flex-none">
+                    <div class="h-full bg-blue-600 w-0"></div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-8">
+                    <div class="mb-6">
+                        <span class="text-xs font-bold text-purple-600 uppercase tracking-wider bg-purple-50 px-2 py-1 rounded border border-purple-100">
+                            Practice Question
+                        </span>
+                    </div>
+                    <h3 class="text-lg font-medium text-slate-800 leading-relaxed mb-8">
+                        This section contains the question stem and options. After reviewing the question, please click on the option you believe best answers the question. If you have finished reading all the instructions and tips, please select option D below.
+                    </h3>
+                    <div class="space-y-3" id="practice-options">
+                        <div data-option="A" class="practice-option p-4 border rounded-lg cursor-pointer transition group border-slate-200 hover:border-blue-400 hover:bg-blue-50">
+                            <span class="inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-slate-300 group-hover:border-blue-500">A</span>
+                            <span class="text-slate-700">I have read the instructions carefully.</span>
+                        </div>
+                        <div data-option="B" class="practice-option p-4 border rounded-lg cursor-pointer transition group border-slate-200 hover:border-blue-400 hover:bg-blue-50">
+                            <span class="inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-slate-300 group-hover:border-blue-500">B</span>
+                            <span class="text-slate-700">I understand the interface layout.</span>
+                        </div>
+                        <div data-option="C" class="practice-option p-4 border rounded-lg cursor-pointer transition group border-slate-200 hover:border-blue-400 hover:bg-blue-50">
+                            <span class="inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-slate-300 group-hover:border-blue-500">C</span>
+                            <span class="text-slate-700">I understand the testing process.</span>
+                        </div>
+                        <div data-option="D" class="practice-option p-4 border rounded-lg cursor-pointer transition group border-slate-200 hover:border-blue-400 hover:bg-blue-50">
+                            <span class="inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-slate-300 group-hover:border-blue-500">D</span>
+                            <span class="text-slate-700">I know how to take the test and am ready to proceed.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end">
+                    <button id="btn-practice-submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md shadow-blue-200 transition-all flex items-center gap-2 transform active:scale-95">
+                        Submit <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Countdown Modal -->
+    <div id="countdown-modal" class="fixed inset-0 bg-slate-900/95 z-50 items-center justify-center">
+        <div class="text-center">
+            <h2 class="text-3xl font-bold text-white mb-8">The test is about to begin</h2>
+            <div id="countdown-number" class="text-9xl font-bold text-blue-400 mb-8">5</div>
+            <p class="text-slate-400">Please get ready...</p>
+        </div>
+    </div>
+
+    <!-- Warning Toast -->
+    <div id="warning-toast" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 items-center justify-center">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md border-4 border-orange-500">
+            <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 text-orange-600 text-2xl">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-800 mb-4 text-center">Please read the instructions and tips carefully!</h2>
+            <p class="text-slate-500 text-sm text-center">This message will disappear in a few seconds.</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-30 flex-none">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-blue-200">
+                <i class="fas fa-brain"></i>
+            </div>
+            <h1 class="text-lg font-bold text-slate-700 tracking-tight">
+                Deep Reading Cognitive Assessment
+                <span class="text-xs text-slate-400 font-normal ml-2 font-mono">v2.6.0-Secure</span>
+            </h1>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-200">
+                <div id="system-status-dot" class="w-2 h-2 rounded-full bg-slate-400 transition-colors duration-300"></div>
+                <span id="system-status" class="text-xs font-medium text-slate-500">Waiting for initialization</span>
+            </div>
+            <div class="text-slate-600 font-mono text-lg font-bold" id="timer">00:00</div>
+            <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 border border-indigo-200">
+                <i class="fas fa-user-graduate text-sm"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden relative">
+        
+        <section id="reading-aoi" data-aoi="text" class="w-7/12 p-8 lg:p-12 overflow-y-auto relative scroll-smooth bg-[#fafafa]">
+            <div class="max-w-3xl mx-auto bg-white shadow-sm p-10 min-h-full rounded-sm border border-slate-100 transition-all">
+                <h1 id="passage-title" class="text-2xl font-bold text-slate-800 mb-6 font-serif border-b border-slate-100 pb-4">
+                    <span class="inline-block w-4 h-4 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin mr-2"></span>
+                    Loading Passage...
+                </h1>
+                <article id="passage-content" class="prose prose-slate lg:prose-lg max-w-none font-serif leading-loose text-slate-600">
+                </article>
+            </div>
+        </section>
+
+        <section id="question-aoi" data-aoi="question" class="w-5/12 bg-white flex flex-col border-l border-slate-200 relative shadow-xl z-20">
+            <div class="h-1 w-full bg-slate-100 flex-none">
+                <div id="progress-bar" class="h-full bg-blue-600 transition-all duration-500 ease-out" style="width: 0%"></div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-8 relative">
+                <div class="mb-6 flex justify-between items-center">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                        Question <span id="q-index">1</span>/<span id="q-total">--</span>
+                    </span>
+                </div>
+                
+                <h3 id="q-stem" class="text-lg font-medium text-slate-800 leading-relaxed mb-8">
+                </h3>
+                
+                <div id="options-list" class="space-y-3">
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end flex-none">
+                <button id="btn-next" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md shadow-blue-200 transition-all flex items-center gap-2 transform active:scale-95">
+                    Next <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Registration Modal -->
+    <div id="registration-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md border border-slate-200 relative overflow-hidden transform transition-all scale-100">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-1">Participant Registration</h2>
+            <p class="text-slate-500 text-sm mb-6">Cognitive Hesitation Analysis - Participant Entry</p>
+            
+            <form id="reg-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                    <input type="text" id="reg-name" required placeholder="Pinyin or English" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-slate-50 focus:bg-white">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Age</label>
+                        <input type="number" id="reg-age" min="16" max="60" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Grade</label>
+                        <select id="reg-grade" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50 focus:bg-white">
+                            <option value="Freshman">Freshman</option>
+                            <option value="Sophomore">Sophomore</option>
+                            <option value="Junior">Junior</option>
+                            <option value="Senior">Senior</option>
+                            <option value="Graduate">Graduate</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 text-xs text-slate-600 space-y-2 mt-4">
+                    <p class="font-bold text-blue-800 mb-2"><i class="fas fa-info-circle mr-1"></i>Data Collection Statement</p>
+                    <label class="flex items-start gap-2 cursor-pointer hover:text-blue-700 transition">
+                        <input type="checkbox" required class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                        <span>I confirm my environment is quiet and I agree to keep fullscreen mode active throughout the test.</span>
+                    </label>
+                    <label class="flex items-start gap-2 cursor-pointer hover:text-blue-700 transition">
+                        <input type="checkbox" required class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
+                        <span>I agree to have my mouse trajectory recorded for cognitive science research.</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-lg font-bold shadow-lg shadow-slate-200 transition-all mt-6 flex justify-center items-center gap-2 group">
+                    <span>Start Experiment</span>
+                    <i class="fas fa-chevron-right group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase SDK (v11.6.1) - Only used for loading questions
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 1. Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCsc75cgtVOCBI_GjVh-l8RsrhOcCIkNqw",
+            authDomain: "hesitation-research.firebaseapp.com",
+            projectId: "hesitation-research",
+            storageBucket: "hesitation-research.firebasestorage.app",
+            messagingSenderId: "633469376688",
+            appId: "1:633469376688:web:dc26878c070a05a35b4375",
+            measurementId: "G-ZNZ14Q5R98"
+        };
+
+        /**
+         * CognitiveTracker Class
+         * Handles all telemetry and anti-cheat logic
+         * 
+         * v2.6.0 Updates:
+         * - Removed Firebase data upload (local JSON export only)
+         * - 50ms sampling rate
+         * - Option-level AOI tracking (A/B/C/D/Questionnaires)
+         * - Dual JSON file output
+         * - Test Start/Completed events
+         * - Performance optimizations
+         */
+        class CognitiveTracker {
+            constructor() {
+                // Initialize Firebase (for loading questions only)
+                this.app = initializeApp(firebaseConfig);
+                this.db = getFirestore(this.app);
+
+                // Session state
+                this.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                this.userId = null;
+                this.isTracking = false;
+                
+                // Mouse buffer
+                this.mouseBuffer = [];
+                
+                // Detailed tracking data for second JSON file
+                this.detailedTrackingData = [];
+                
+                // Current question state
+                this.currentQuestionIndex = 0;
+                this.questionStarted = false;
+                this.mouseMovedOnQuestion = false;
+                
+                // Cheating detection
+                this.cheatingDetected = false;
+                this.cheatingEvents = [];
+                
+                // Instructions read warning
+                this.didNotReadInstructions = false;
+                
+                // Pending tab switch warning (for ALT+TAB detection)
+                this.pendingTabWarning = false;
+                
+                // Current AOI type
+                this.currentAoiType = null;
+
+                // Click events
+                this.clickEvents = [];
+
+                // Cached bounds for performance
+                this.cachedBounds = {};
+
+                this.bindEvents();
+            }
+
+            /**
+             * Bind all global event listeners
+             */
+            bindEvents() {
+                // NOTE: Sampling interval is NOT started here - only after main test begins
+                // See startTracking() method
+
+                // 2. Cache mouse position (passive for performance)
+                document.addEventListener('mousemove', (e) => this.cacheMousePosition(e), { passive: true });
+
+                // 3. Track clicks
+                document.addEventListener('click', (e) => this.handleClick(e), { passive: true });
+
+                // 4. Anti-cheat monitoring
+                document.addEventListener('visibilitychange', () => this.handleVisibility());
+                document.addEventListener('fullscreenchange', () => this.handleFullscreen());
+
+                // 5. Fullscreen resume button
+                document.getElementById('btn-resume-fs').addEventListener('click', () => {
+                    this.enterFullscreen();
+                    document.getElementById('fullscreen-warning').style.display = 'none';
+                });
+
+                // 6. Tab switch resume button
+                document.getElementById('btn-resume-tab').addEventListener('click', () => {
+                    document.getElementById('tab-switch-warning').style.display = 'none';
+                });
+
+                // 6. Window resize handler (throttled)
+                let resizeTimeout;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => this.updateCachedBounds(), 100);
+                }, { passive: true });
+            }
+
+            /**
+             * Start tracking - called only when main test begins (after practice question)
+             */
+            startTracking() {
+                this.isTracking = true;
+                // Start sampling loop (50ms interval) - only now, not during practice
+                this.samplingInterval = setInterval(() => this.sampleMousePosition(), 50);
+                this.updateSystemStatus('Online (Recording)', 'bg-green-500');
+            }
+
+            updateCachedBounds() {
+                const textArea = document.getElementById('reading-aoi');
+                const questionArea = document.getElementById('question-aoi');
+                if (textArea) this.cachedBounds.text = textArea.getBoundingClientRect();
+                if (questionArea) this.cachedBounds.question = questionArea.getBoundingClientRect();
+            }
+
+            cacheMousePosition(e) {
+                this.lastMouseEvent = e;
+                
+                // Detect mouse movement for Test Start event
+                if (!this.mouseMovedOnQuestion && this.isTracking) {
+                    this.mouseMovedOnQuestion = true;
+                    this.recordTestStart();
+                }
+            }
+
+            handleClick(e) {
+                if (!this.isTracking) return;
+                
+                const timestamp = new Date().toISOString();
+                const aoiType = this.detectAoiType(e.clientX, e.clientY);
+                
+                this.clickEvents.push({
+                    timestamp: timestamp,
+                    x: e.clientX,
+                    y: e.clientY,
+                    aoi: aoiType
+                });
+            }
+
+            detectAoiType(x, y) {
+                // Check confidence modal
+                const confidenceModal = document.getElementById('confidence-modal');
+                if (confidenceModal && confidenceModal.classList.contains('show')) {
+                    return 'Questionnaires';
+                }
+
+                // Check option areas (A/B/C/D)
+                const optionsList = document.getElementById('options-list');
+                if (optionsList) {
+                    const options = optionsList.querySelectorAll('[data-aoi-type]');
+                    for (const opt of options) {
+                        const rect = opt.getBoundingClientRect();
+                        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                            return opt.dataset.aoiType;
+                        }
+                    }
+                }
+
+                // Check reading/question areas by screen ratio
+                const xRatio = x / window.innerWidth;
+                return xRatio <= 0.5833 ? 'text' : 'question';
+            }
+
+            sampleMousePosition() {
+                if (!this.isTracking || !this.lastMouseEvent) return;
+
+                const e = this.lastMouseEvent;
+                const timestamp = new Date().toISOString();
+                const aoiType = this.detectAoiType(e.clientX, e.clientY);
+                
+                // Check for recent clicks
+                const recentClick = this.clickEvents.find(click => {
+                    const clickTime = new Date(click.timestamp).getTime();
+                    const now = Date.now();
+                    return now - clickTime < 50;
+                });
+
+                const dataPoint = {
+                    timestamp: timestamp,
+                    x: e.clientX,
+                    y: e.clientY,
+                    aoi: aoiType,
+                    click: recentClick ? true : false
+                };
+
+                this.detailedTrackingData.push(dataPoint);
+                this.currentAoiType = aoiType;
+
+                // Clear processed click events
+                if (recentClick) {
+                    this.clickEvents = this.clickEvents.filter(c => c !== recentClick);
+                }
+
+                // Also update mouseBuffer
+                this.mouseBuffer.push({
+                    t: Date.now(),
+                    a: aoiType === 'text' ? 0 : 1,
+                    x: Number((e.clientX / window.innerWidth).toFixed(4)),
+                    y: Number((e.clientY / window.innerHeight).toFixed(4)),
+                    aoi: aoiType
+                });
+            }
+
+            recordTestStart() {
+                if (this.isTracking && !this.questionStarted) {
+                    this.questionStarted = true;
+                    this.detailedTrackingData.push(`Test(${this.currentQuestionIndex + 1}) Start`);
+                }
+            }
+
+            recordTestCompleted() {
+                if (this.isTracking) {
+                    this.detailedTrackingData.push(`Test(${this.currentQuestionIndex + 1}) Completed`);
+                    this.questionStarted = false;
+                    this.mouseMovedOnQuestion = false;
+                }
+            }
+
+            setCurrentQuestionIndex(index) {
+                this.currentQuestionIndex = index;
+                this.questionStarted = false;
+                this.mouseMovedOnQuestion = false;
+            }
+
+            handleFullscreen() {
+                if (!document.fullscreenElement && this.isTracking) {
+                    this.cheatingDetected = true;
+                    this.cheatingEvents.push({
+                        type: 'FULLSCREEN_EXIT',
+                        timestamp: new Date().toISOString()
+                    });
+                    document.getElementById('fullscreen-warning').style.display = 'flex';
+                }
+            }
+
+            handleVisibility() {
+                if (document.hidden && this.isTracking) {
+                    this.cheatingDetected = true;
+                    this.cheatingEvents.push({
+                        type: 'TAB_SWITCH',
+                        timestamp: new Date().toISOString()
+                    });
+                    // Show tab switch warning when user returns
+                    this.pendingTabWarning = true;
+                } else if (!document.hidden && this.pendingTabWarning) {
+                    // User returned - show warning
+                    this.pendingTabWarning = false;
+                    document.getElementById('tab-switch-warning').style.display = 'flex';
+                }
+            }
+
+            enterFullscreen() {
+                const el = document.documentElement;
+                if (el.requestFullscreen) {
+                    el.requestFullscreen().catch(err => {
+                        console.warn("Fullscreen blocked:", err);
+                        alert("Please allow fullscreen mode to proceed with the test.");
+                    });
+                }
+            }
+
+            exitFullscreen() {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(err => {
+                        console.warn("Exit fullscreen failed:", err);
+                    });
+                }
+            }
+
+            updateSystemStatus(text, colorClass) {
+                const statusEl = document.getElementById('system-status');
+                const dotEl = document.getElementById('system-status-dot');
+                statusEl.innerText = text;
+                dotEl.className = `w-2 h-2 rounded-full ${colorClass}`;
+            }
+
+            getCheatingStatus() {
+                return {
+                    detected: this.cheatingDetected,
+                    events: this.cheatingEvents
+                };
+            }
+
+            getDetailedTrackingData() {
+                return this.detailedTrackingData;
+            }
+
+            destroy() {
+                if (this.samplingInterval) {
+                    clearInterval(this.samplingInterval);
+                }
+            }
+        }
+
+        // --- Initialize System ---
+        const tracker = new CognitiveTracker();
+
+        // --- Exam Data Recorder ---
+        const examData = {
+            user_id: null,
+            exam_id: "exam_" + Date.now(),
+            start_time: null,
+            end_time: null,
+            passage_id: null,
+            passage_title: null,
+            answers: [],
+            hover_events: [],
+            tab_switches: [],
+        };
+
+        // Store JSON data for re-download
+        let lastExamData = null;
+        let lastMouseTrackingData = null;
+
+        // Track tab switches
+        document.addEventListener('visibilitychange', () => {
+            if (examData.start_time) {
+                examData.tab_switches.push({
+                    type: document.hidden ? 'away' : 'back',
+                    timestamp: Date.now() - examData.start_time
+                });
+            }
+        });
+
+        // --- Registration Handler ---
+        document.getElementById('reg-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing...';
+
+            const userData = {
+                name: document.getElementById('reg-name').value,
+                age: document.getElementById('reg-age').value,
+                grade: document.getElementById('reg-grade').value,
+                device: {
+                    userAgent: navigator.userAgent,
+                    screenWidth: window.screen.width,
+                    screenHeight: window.screen.height,
+                    pixelRatio: window.devicePixelRatio,
+                    platform: navigator.platform
+                }
+            };
+
+            tracker.userId = userData.name;
+            examData.user_id = userData.name;
+
+            // Enter fullscreen immediately after registration
+            tracker.enterFullscreen();
+
+            // Hide registration modal
+            document.getElementById('registration-modal').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('registration-modal').style.display = 'none';
+                // Show instructions modal
+                document.getElementById('instructions-modal').classList.add('show');
+            }, 300);
+        });
+
+        // --- Instructions Checkbox Handler ---
+        document.getElementById('instructions-checkbox').addEventListener('change', (e) => {
+            const confirmBtn = document.getElementById('btn-instructions-confirm');
+            if (e.target.checked) {
+                confirmBtn.disabled = false;
+                confirmBtn.className = 'w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-lg font-bold shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer';
+            } else {
+                confirmBtn.disabled = true;
+                confirmBtn.className = 'w-full bg-slate-400 text-white py-3.5 rounded-lg font-bold shadow-lg transition-all flex justify-center items-center gap-2 cursor-not-allowed';
+            }
+        });
+
+        // --- Instructions Confirm Handler ---
+        document.getElementById('btn-instructions-confirm').addEventListener('click', () => {
+            document.getElementById('instructions-modal').classList.remove('show');
+            document.getElementById('practice-modal').classList.add('show');
+        });
+
+        // --- Practice Question Logic ---
+        let selectedPracticeOption = null;
+
+        document.querySelectorAll('.practice-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                // Reset all options
+                document.querySelectorAll('.practice-option').forEach(o => {
+                    o.className = 'practice-option p-4 border rounded-lg cursor-pointer transition group border-slate-200 hover:border-blue-400 hover:bg-blue-50';
+                    o.querySelector('span:first-child').className = 'inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-slate-300 group-hover:border-blue-500';
+                });
+                
+                // Highlight selected
+                opt.className = 'practice-option p-4 border rounded-lg cursor-pointer transition group border-blue-500 bg-blue-50 ring-2 ring-blue-300';
+                opt.querySelector('span:first-child').className = 'inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-blue-500 bg-blue-500 text-white';
+                
+                selectedPracticeOption = opt.dataset.option;
+            });
+        });
+
+        document.getElementById('btn-practice-submit').addEventListener('click', () => {
+            if (!selectedPracticeOption) {
+                alert('Please select an option.');
+                return;
+            }
+
+            if (selectedPracticeOption === 'D') {
+                // Correct - show countdown
+                document.getElementById('practice-modal').classList.remove('show');
+                document.getElementById('countdown-modal').classList.add('show');
+                
+                let countdown = 5;
+                const countdownEl = document.getElementById('countdown-number');
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    countdownEl.textContent = countdown;
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        document.getElementById('countdown-modal').classList.remove('show');
+                        
+                        // Start tracking - fullscreen is already active from registration
+                        // DO NOT call enterFullscreen() again as it can cause issues
+                        tracker.startTracking();
+                        
+                        // Load questions
+                        loadPassageAndQuestions();
+                    }
+                }, 1000);
+            } else {
+                // Incorrect - show warning
+                tracker.didNotReadInstructions = true;
+                document.getElementById('warning-toast').classList.add('show');
+                
+                setTimeout(() => {
+                    document.getElementById('warning-toast').classList.remove('show');
+                }, 5000);
+            }
+        });
+
+        // --- Confidence Modal Logic ---
+        let pendingConfidenceCallback = null;
+
+        function showConfidenceModal(callback) {
+            const modal = document.getElementById('confidence-modal');
+            modal.classList.add('show');
+            pendingConfidenceCallback = callback;
+            tracker.currentAoiType = 'Questionnaires';
+        }
+
+        function hideConfidenceModal() {
+            const modal = document.getElementById('confidence-modal');
+            modal.classList.remove('show');
+        }
+
+        document.querySelectorAll('.confidence-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const confidenceLevel = parseInt(btn.dataset.confidence);
+                hideConfidenceModal();
+                if (pendingConfidenceCallback) {
+                    pendingConfidenceCallback(confidenceLevel);
+                    pendingConfidenceCallback = null;
+                }
+            });
+        });
+
+        // --- Re-download Button Handler ---
+        document.getElementById('btn-redownload').addEventListener('click', () => {
+            if (lastExamData && lastMouseTrackingData) {
+                downloadJSON(lastExamData, `exam_data_${examData.user_id}_${Date.now()}.json`);
+                setTimeout(() => {
+                    downloadJSON(lastMouseTrackingData, `mouse_tracking_${examData.user_id}_${Date.now()}.json`);
+                }, 500);
+            }
+        });
+
+        // --- Question Loader ---
+        async function loadPassageAndQuestions() {
+            const titleEl = document.getElementById('passage-title');
+            const contentEl = document.getElementById('passage-content');
+            const stemEl = document.getElementById('q-stem');
+            const optionsList = document.getElementById('options-list');
+            const totalEl = document.getElementById('q-total');
+            const nextBtn = document.getElementById('btn-next');
+
+            try {
+                // Load passages
+                const passagesSnapshot = await getDocs(collection(tracker.db, "reading_materials"));
+                
+                if (passagesSnapshot.empty) {
+                    titleEl.innerHTML = 'ℹ️ No questions available';
+                    contentEl.innerHTML = '<p class="text-slate-500">Please contact the administrator to add questions.</p>';
+                    return;
+                }
+
+                // Sort by creation time
+                const passages = [];
+                passagesSnapshot.forEach(doc => passages.push({ id: doc.id, ...doc.data() }));
+                passages.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+                const passage = passages[0];
+
+                // Record exam data
+                examData.passage_id = passage.id;
+                examData.passage_title = passage.title;
+                examData.start_time = Date.now();
+
+                // Fill passage content
+                titleEl.innerHTML = passage.title || 'Untitled Passage';
+                contentEl.innerHTML = passage.content_html || '<p>(No content)</p>';
+
+                // Load associated questions
+                const questionsSnapshot = await getDocs(collection(tracker.db, "questions"));
+                const questions = [];
+                questionsSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.passage_id === passage.id) {
+                        questions.push({ id: doc.id, ...data });
+                    }
+                });
+
+                if (questions.length === 0) {
+                    stemEl.innerText = 'No questions associated with this passage';
+                    return;
+                }
+
+                // Sort questions
+                questions.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+                totalEl.innerText = questions.length;
+
+                // Question state
+                let currentIndex = 0;
+                let selectedAnswers = new Array(questions.length).fill(null);
+                let questionStartTime = Date.now();
+
+                showQuestion(currentIndex);
+
+                function showQuestion(index) {
+                    const q = questions[index];
+                    const isLastQuestion = index === questions.length - 1;
+
+                    tracker.setCurrentQuestionIndex(index);
+
+                    if (index > 0) {
+                        const prevAnswer = examData.answers[index - 1];
+                        if (prevAnswer) {
+                            prevAnswer.time_spent_ms = Date.now() - questionStartTime;
+                        }
+                    }
+                    questionStartTime = Date.now();
+
+                    document.getElementById('q-index').innerText = index + 1;
+                    stemEl.innerText = q.stem || '(No question stem)';
+                    optionsList.innerHTML = '';
+
+                    // Update progress bar
+                    const progress = ((index) / questions.length) * 100;
+                    document.getElementById('progress-bar').style.width = progress + '%';
+
+                    // Initialize answer record
+                    if (!examData.answers[index]) {
+                        examData.answers[index] = {
+                            question_id: q.id,
+                            question_index: index + 1,
+                            selected_answer: null,
+                            correct_answer: q.correct_index,
+                            time_spent_ms: 0,
+                            hover_durations: { A: 0, B: 0, C: 0, D: 0 },
+                            confidence_level: null
+                        };
+                    }
+
+                    (q.options || []).forEach((opt, i) => {
+                        const optDiv = document.createElement('div');
+                        const optLetter = String.fromCharCode(65 + i);
+                        const isSelected = selectedAnswers[index] === i;
+                        
+                        optDiv.dataset.aoiType = optLetter;
+                        optDiv.className = `option-aoi p-4 border rounded-lg cursor-pointer transition group ${
+                            isSelected 
+                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-300' 
+                                : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                        }`;
+                        optDiv.dataset.optionIndex = i;
+                        
+                        optDiv.innerHTML = `
+                            <span class="inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 ${
+                                isSelected ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-300 group-hover:border-blue-500'
+                            }">${optLetter}</span>
+                            <span class="text-slate-700">${opt}</span>
+                        `;
+                        
+                        // Hover tracking
+                        let hoverStart = null;
+                        optDiv.onmouseenter = () => {
+                            hoverStart = Date.now();
+                        };
+                        optDiv.onmouseleave = () => {
+                            if (hoverStart) {
+                                const duration = Date.now() - hoverStart;
+                                examData.answers[index].hover_durations[optLetter] += duration;
+                                examData.hover_events.push({
+                                    question_index: index + 1,
+                                    option: optLetter,
+                                    enter_t: hoverStart - examData.start_time,
+                                    leave_t: Date.now() - examData.start_time,
+                                    duration_ms: duration
+                                });
+                            }
+                        };
+                        
+                        optDiv.onclick = () => selectOption(index, i);
+                        optionsList.appendChild(optDiv);
+                    });
+
+                    // Update button
+                    nextBtn.classList.remove('hidden');
+                    if (isLastQuestion) {
+                        nextBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Submit';
+                        nextBtn.className = 'bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-bold shadow-md shadow-green-200 transition-all flex items-center gap-2 transform active:scale-95';
+                    } else {
+                        nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
+                        nextBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md shadow-blue-200 transition-all flex items-center gap-2 transform active:scale-95';
+                    }
+
+                    nextBtn.onclick = () => {
+                        if (selectedAnswers[index] === null) {
+                            alert('Please select an answer first!');
+                            return;
+                        }
+
+                        examData.answers[index].time_spent_ms = Date.now() - questionStartTime;
+                        tracker.recordTestCompleted();
+
+                        showConfidenceModal((confidenceLevel) => {
+                            examData.answers[index].confidence_level = confidenceLevel;
+
+                            if (isLastQuestion) {
+                                submitExam();
+                            } else {
+                                currentIndex++;
+                                showQuestion(currentIndex);
+                            }
+                        });
+                    };
+                }
+
+                function selectOption(qIndex, optIndex) {
+                    selectedAnswers[qIndex] = optIndex;
+                    examData.answers[qIndex].selected_answer = optIndex;
+                    
+                    const opts = optionsList.children;
+                    for (let i = 0; i < opts.length; i++) {
+                        if (i === optIndex) {
+                            opts[i].className = 'option-aoi p-4 border rounded-lg cursor-pointer transition group border-blue-500 bg-blue-50 ring-2 ring-blue-300';
+                            opts[i].querySelector('span').className = 'inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-blue-500 bg-blue-500 text-white';
+                        } else {
+                            opts[i].className = 'option-aoi p-4 border rounded-lg cursor-pointer transition group border-slate-200 hover:border-blue-400 hover:bg-blue-50';
+                            opts[i].querySelector('span').className = 'inline-block w-6 h-6 rounded-full border-2 text-center text-xs leading-5 mr-3 border-slate-300 group-hover:border-blue-500';
+                        }
+                    }
+                }
+
+                function submitExam() {
+                    examData.end_time = Date.now();
+
+                    // Calculate score
+                    let correctCount = 0;
+                    examData.answers.forEach(a => {
+                        if (a.selected_answer === a.correct_answer) correctCount++;
+                    });
+
+                    const cheatingStatus = tracker.getCheatingStatus();
+
+                    // Build first JSON file - warnings FIRST to appear at top
+                    const fullData = {};
+                    
+                    // Add warnings at the TOP of the file (before other fields)
+                    if (tracker.didNotReadInstructions) {
+                        fullData["⚠️_instructions_warning"] = {
+                            "warning": "This participant did not read the instructions carefully.",
+                            "timestamp": new Date().toISOString()
+                        };
+                    }
+
+                    if (cheatingStatus.detected) {
+                        fullData["⚠️_cheating_warning"] = {
+                            "warning": "Detected the following violations during the test",
+                            "events": cheatingStatus.events,
+                            "count": cheatingStatus.events.length
+                        };
+                    }
+
+                    // Now add the rest of the data
+                    fullData["_comments"] = {
+                        "file_description": "Exam data summary file - contains answer records, behavioral data, and basic mouse trajectory",
+                        "version": "2.6.0",
+                        "export_time": "Export timestamp",
+                        "fields": {
+                            "meta": "Metadata including version, export time, user ID, and session ID",
+                            "exam_context": "Exam context including exam ID, passage info, score, etc.",
+                            "answers": "Answer records array, each containing selected answer, correct answer, time spent, hover durations, and confidence level",
+                            "behavioral_data": "Behavioral data including hover events and tab switch records"
+                        }
+                    };
+                    fullData.meta = {
+                        version: "2.6.0",
+                        export_time: new Date().toISOString(),
+                        user_id: examData.user_id,
+                        session_id: tracker.sessionId
+                    };
+                    fullData.exam_context = {
+                        exam_id: examData.exam_id,
+                        passage_id: examData.passage_id,
+                        passage_title: examData.passage_title,
+                        total_questions: examData.answers.length,
+                        correct_count: correctCount,
+                        score_percentage: Math.round((correctCount / examData.answers.length) * 100),
+                        duration_ms: examData.end_time - examData.start_time
+                    };
+                    fullData.answers = examData.answers;
+                    fullData.behavioral_data = {
+                        hover_events: examData.hover_events,
+                        tab_switches: examData.tab_switches
+                    };
+
+                    // Build second JSON file
+                    const mouseTrackingData = {
+                        "_comments": {
+                            "file_description": "Detailed mouse trajectory tracking file - records mouse position every 50ms",
+                            "sampling_rate_ms": 50,
+                            "version": "2.6.0",
+                            "export_time": new Date().toISOString(),
+                            "columns": {
+                                "timestamp": "Local timestamp (ISO format, millisecond precision)",
+                                "x": "Mouse absolute X coordinate (pixels)",
+                                "y": "Mouse absolute Y coordinate (pixels)",
+                                "aoi": "Current AOI region (A/B/C/D for options, Questionnaires for confidence modal, text for reading area, question for question area)",
+                                "click": "Whether a click event occurred (true/false)"
+                            },
+                            "special_events": {
+                                "Test(X) Start": "Recorded when mouse starts moving after question X is displayed",
+                                "Test(X) Completed": "Recorded when user clicks next or submit"
+                            }
+                        },
+                        meta: {
+                            user_id: examData.user_id,
+                            session_id: tracker.sessionId,
+                            exam_id: examData.exam_id
+                        },
+                        events: tracker.getDetailedTrackingData()
+                    };
+
+                    // Store for re-download
+                    lastExamData = fullData;
+                    lastMouseTrackingData = mouseTrackingData;
+
+                    // Download both JSON files
+                    downloadJSON(fullData, `exam_data_${examData.user_id}_${Date.now()}.json`);
+                    setTimeout(() => {
+                        downloadJSON(mouseTrackingData, `mouse_tracking_${examData.user_id}_${Date.now()}.json`);
+                    }, 500);
+
+                    // Exit fullscreen
+                    tracker.exitFullscreen();
+
+                    // Show thank you page
+                    const resultSummary = document.getElementById('result-summary');
+                    resultSummary.innerHTML = `
+                        <p><strong>Total Questions:</strong> ${examData.answers.length}</p>
+                        <p><strong>Accuracy:</strong> ${Math.round((correctCount / examData.answers.length) * 100)}%</p>
+                        <p><strong>Time Spent:</strong> ${Math.round((examData.end_time - examData.start_time) / 1000)} seconds</p>
+                        <p><strong>Session ID:</strong> <span class="font-mono text-xs">${tracker.sessionId}</span></p>
+                    `;
+                    
+                    document.getElementById('thank-you-modal').classList.add('show');
+
+                    // Stop tracking
+                    tracker.isTracking = false;
+                    tracker.destroy();
+                }
+
+            } catch (error) {
+                console.error('Failed to load questions:', error);
+                titleEl.innerHTML = '❌ Loading Failed';
+                contentEl.innerHTML = `<p class="text-red-500">Error: ${error.message}<br><span class="text-xs">Please check network connection or Firebase configuration</span></p>`;
+            }
+        }
+
+        // Download JSON file helper
+        function downloadJSON(data, filename) {
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
